@@ -1,0 +1,1 @@
+# CSC-570-Smart-Venue-and-Event-Database-Management-System
