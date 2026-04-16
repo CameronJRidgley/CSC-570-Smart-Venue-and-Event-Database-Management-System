@@ -1,0 +1,10 @@
+[{
+  "_id": {
+    "$oid": "69d99cebab3bdf3adf07add5"
+  },
+  "event_id": "E149",
+  "zone": "Section H",
+  "timestamp": "2026-04-10T20:20:30Z",
+  "density_level": "high",
+  "people_count": 400
+}]

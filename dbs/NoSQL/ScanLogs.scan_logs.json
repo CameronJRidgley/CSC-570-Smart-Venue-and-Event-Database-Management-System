@@ -1,0 +1,11 @@
+[{
+  "_id": {
+    "$oid": "69d986a9ab3bdf3adf07adcc"
+  },
+  "ticket_id": "T12345",
+  "event_id": "E209",
+  "user_id": "U2984",
+  "scan_time": "2026-04-10T18:45:00Z",
+  "gate": "North Entrance",
+  "status": "valid"
+}]

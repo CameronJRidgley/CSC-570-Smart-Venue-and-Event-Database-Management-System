@@ -1,0 +1,11 @@
+[{
+  "_id": {
+    "$oid": "69d99d93ab3bdf3adf07adda"
+  },
+  "event_id": "E395",
+  "user_id": "U567",
+  "rating": 4,
+  "comment": "I loved the event! One small thing, I would like the lines to be smaller.",
+  "submitted_at": "2026-04-10T18:45:48Z",
+  "category": "general"
+}]

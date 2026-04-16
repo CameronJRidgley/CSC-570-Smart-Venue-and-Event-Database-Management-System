@@ -1,0 +1,21 @@
+[{
+  "_id": {
+    "$oid": "69d99b4eab3bdf3adf07add2"
+  },
+  "incident_id": "I930",
+  "event_id": "E495",
+  "type": "medical",
+  "severity": "high",
+  "reported_at": "2026-04-10T19:30:00Z",
+  "status": "resolved",
+  "updates": [
+    {
+      "time": "2026-04-10T19:31:00Z",
+      "note": "Medic Dispatched"
+    },
+    {
+      "time": "2026-04-10T19:39:00Z",
+      "note": "Patient Stabilized"
+    }
+  ]
+}]
