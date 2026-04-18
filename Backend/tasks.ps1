@@ -34,6 +34,8 @@ Targets:
     "db-up"        { docker compose up -d postgres mongo }
     "db-down"      { docker compose down }
     "migrate"      { alembic upgrade head }
+    "seed"         { python -m scripts.seed }
+    "seed-wipe"    { python -m scripts.seed --wipe }
     "revision"     {
         if (-not $Rest) { Write-Host "Usage: .\tasks.ps1 revision <message>"; exit 1 }
         alembic revision --autogenerate -m ($Rest -join ' ')

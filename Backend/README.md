@@ -64,10 +64,15 @@ JWT · Docker Compose · Pytest · Ruff · GitHub Actions.
 > team's authoritative SQL/Mongo definitions. Enum string values
 > (`valid`, `escalated`, `Low`/`Medium`/`High`, …) and Mongo collection
 > names (`incidents`, `feedback`, `crowd_events`, `scan_logs`) are
-> aligned to their CHECK constraints and sample documents. See
-> [`MAPPING.md`](./MAPPING.md) for the full table-by-table mapping and
-> an optional `scripts/team_compat.sql` that exposes the team's exact
-> table/column names as views over our tables.
+> aligned to their CHECK constraints and sample documents.
+>
+> **Three coordination docs for the team:**
+> - [`PORTAL_ALIGNMENT.md`](./PORTAL_ALIGNMENT.md) — which endpoints
+>   power which frontend portal, with request/response examples.
+> - [`MAPPING.md`](./MAPPING.md) — column-level table mapping between
+>   the team's DDL and our SQLModel tables.
+> - [`scripts/team_compat.sql`](./scripts/team_compat.sql) — optional
+>   updatable views exposing our tables under the team's exact names.
 
 ---
 
@@ -397,6 +402,34 @@ Swagger tag:
 - `GET /api/reports/post-event/{event_id}`
 
 Full request / response schemas live in Swagger at `/docs`.
+
+---
+
+## Seeding demo data
+
+A single command populates Postgres + MongoDB with coordinated fixtures
+(venues, events, attendees, staff, vendors, tickets, payments, scan
+logs, incidents with timelines, crowd thresholds + readings crossing
+into alerts, vendor sales, feedback, and one user per role):
+
+```powershell
+Set-Location backend
+python -m scripts.seed              # idempotent — safe to re-run
+python -m scripts.seed --wipe       # clear first, then seed
+```
+
+After seeding, `GET /api/dashboard/organizer/1` returns a populated
+dashboard and every portal has realistic data to build against. See
+`PORTAL_ALIGNMENT.md` for the full endpoint catalog.
+
+Pre-seeded login users (all use the password shown):
+
+| Email | Role | Password |
+|---|---|---|
+| `organizer@example.com` | organizer | `organizer123!` |
+| `staff@example.com` | staff | `staff123!` |
+| `attendee@example.com` | attendee | `attendee123!` |
+| `admin@example.com` | admin | `admin1234!` |
 
 ---
 

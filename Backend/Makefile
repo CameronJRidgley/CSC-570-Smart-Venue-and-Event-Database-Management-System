@@ -45,6 +45,12 @@ migrate:
 revision:
 	alembic revision --autogenerate -m "$(m)"
 
+seed:
+	python -m scripts.seed
+
+seed-wipe:
+	python -m scripts.seed --wipe
+
 docker-build:
 	docker compose build
 
