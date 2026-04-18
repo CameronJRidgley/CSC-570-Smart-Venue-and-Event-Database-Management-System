@@ -1,4 +1,15 @@
-"""Vendor sales + reconciliation endpoints."""
+"""Vendor sales ledger and reconciliation endpoints.
+
+Powers the **Vendor Portal**:
+  - Sales Entry         → POST /api/vendor-sales
+  - Sales History       → GET  /api/vendor-sales/{vendor_id}
+  - Event sales list    → GET  /api/vendor-sales/event/{event_id}
+  - Reconciliation View → GET  /api/vendor-sales/reconciliation/{event_id}
+
+The reconciliation endpoint aggregates per-vendor and grand totals for
+an event and is also consumed by the **Organizer Dashboard**'s revenue
+widget.
+"""
 from typing import List
 
 from fastapi import APIRouter, status

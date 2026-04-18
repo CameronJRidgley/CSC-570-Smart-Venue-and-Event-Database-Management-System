@@ -1,4 +1,12 @@
-"""Authentication endpoints."""
+"""Authentication endpoints (shared across all portals).
+
+  - Register a user   → POST /api/auth/register
+  - Log in, get JWT   → POST /api/auth/login
+  - Current user      → GET  /api/auth/me
+
+Tokens are HS256-signed JWTs carrying `sub` (user id), `role`, and
+`email`. Send `Authorization: Bearer <token>` on authenticated calls.
+"""
 from fastapi import APIRouter, status
 
 from app.core.dependencies import CurrentUserDep, SessionDep

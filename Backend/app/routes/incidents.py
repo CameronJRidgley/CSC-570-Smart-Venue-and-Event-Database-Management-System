@@ -1,4 +1,20 @@
-"""Incident endpoints. Thin HTTP layer."""
+"""Incident reporting and timeline endpoints.
+
+Powers the **Staff Portal**:
+  - Incident Reporting Form  → POST  /api/incidents
+  - Incident detail view     → GET   /api/incidents/{id}
+  - Status / resolution edit → PATCH /api/incidents/{id}
+  - Add timeline note        → POST  /api/incidents/{id}/updates
+  - Escalate severity        → POST  /api/incidents/{id}/escalate
+
+Also consumed by the **Organizer Dashboard** via:
+  - List for an event        → GET   /api/events/{event_id}/incidents
+
+The authoritative record lives in Postgres (`incidents`); the evolving
+update history lives in a Mongo `incidents` timeline document keyed by
+incident_id. Timeline writes are best-effort — a Mongo blip never
+blocks an operator from advancing status in SQL.
+"""
 from typing import List
 
 from fastapi import APIRouter, status

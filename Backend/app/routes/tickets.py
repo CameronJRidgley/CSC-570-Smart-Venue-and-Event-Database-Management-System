@@ -1,4 +1,16 @@
-"""Ticket endpoints."""
+"""Ticket purchase, wallet, and lifecycle endpoints.
+
+Powers the **Attendee Portal**:
+  - Checkout / Payment       → POST /api/tickets/purchase
+  - Purchase Confirmation    → GET  /api/tickets/{ticket_id}
+  - Ticket Wallet (list)     → GET  /api/users/{user_id}/tickets
+  - Cancel / refund          → PATCH /api/tickets/{ticket_id}/status
+
+Purchase is atomic and race-safe: `SELECT ... FOR UPDATE` serializes
+writers for a given event and a DB uniqueness constraint on
+(event_id, seating_section_id, seat_number) is the final backstop
+against double-booking a seat.
+"""
 from typing import List
 
 from fastapi import APIRouter, status

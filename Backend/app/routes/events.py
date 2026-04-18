@@ -1,4 +1,14 @@
-"""Event-centric endpoints. Thin: delegate to ticketing_service."""
+"""Event browsing endpoints.
+
+Powers the **Attendee Portal** modules:
+  - Event Search        → GET /api/events
+  - Event Details       → GET /api/events/{event_id}
+  - Seat Selection      → GET /api/events/{event_id}/seats
+  - Live availability   → GET /api/events/{event_id}/availability
+
+Also used by the **Organizer Dashboard** when pre-filling event pickers.
+Thin HTTP layer — all business logic lives in `ticketing_service`.
+"""
 from typing import List
 
 from fastapi import APIRouter, Query

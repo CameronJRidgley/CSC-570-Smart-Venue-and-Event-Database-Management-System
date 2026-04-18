@@ -1,4 +1,15 @@
-"""Check-in endpoints. Thin HTTP layer."""
+"""Gate check-in endpoints.
+
+Powers the **Staff Portal**:
+  - QR Scan Screen        → POST /api/checkin/scan
+  - Manual check-in       → POST /api/checkin/manual
+  - Entry Monitoring      → GET  /api/checkin/event/{event_id}
+  - Live scan log stream  → GET  /api/checkin/logs/{event_id}
+
+Postgres is committed (`ticket.status = 'used'`) **before** the
+corresponding ScanLog is written to Mongo — so a Mongo outage can only
+cost us audit data, never valid entries or double-entries.
+"""
 from typing import List
 
 from fastapi import APIRouter, Query

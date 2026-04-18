@@ -1,4 +1,17 @@
-"""Crowd ingestion endpoints."""
+"""Crowd telemetry endpoints.
+
+Powers the **Organizer Dashboard**'s Crowd Monitoring Panel:
+  - Ingest sensor reading     → POST /api/crowd/events
+  - Historical stream (chart) → GET  /api/crowd/events/{event_id}
+  - Live zone snapshot        → GET  /api/crowd/zones/{event_id}
+  - Active alerts             → GET  /api/crowd/alerts/{event_id}
+  - Zone threshold config     → POST /api/crowd/thresholds
+
+Every ingested reading is classified against per-event/per-zone
+thresholds (stored in Mongo) as normal / elevated / high / critical.
+Missing thresholds never cause ingestion to fail — the reading is
+stored as `normal` with a note in the response.
+"""
 from typing import List
 
 from fastapi import APIRouter, Query, status

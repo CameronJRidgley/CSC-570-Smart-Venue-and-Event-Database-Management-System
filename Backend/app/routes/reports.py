@@ -1,4 +1,16 @@
-"""Reporting endpoints. Thin HTTP layer."""
+"""Organizer reporting and dashboard endpoints.
+
+Powers the **Organizer Dashboard**:
+  - Compact dashboard widget    → GET /api/dashboard/organizer/{event_id}
+  - Attendance report           → GET /api/reports/attendance/{event_id}
+  - Revenue report              → GET /api/reports/revenue/{event_id}
+  - Safety / incidents report   → GET /api/reports/safety/{event_id}
+  - Post-event summary bundle   → GET /api/reports/post-event/{event_id}
+
+Each endpoint runs its SQL aggregations and Mongo aggregations
+independently and fuses the results in the service layer — no
+cross-database joins.
+"""
 from fastapi import APIRouter
 
 from app.core.dependencies import SessionDep

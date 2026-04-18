@@ -1,4 +1,14 @@
-"""Vendor endpoints."""
+"""Vendor registration and event-assignment endpoints.
+
+Powers the **Vendor Portal** and (admin side of) the **Organizer
+Dashboard**:
+  - Vendor Profile / list    → GET  /api/vendors, GET /api/vendors/{id}
+  - Register a vendor        → POST /api/vendors
+  - Assign vendor to event   → POST /api/vendors/{id}/assignments
+
+A vendor must be assigned to an event before they can record sales
+against it (see vendor_sales.py).
+"""
 from typing import List
 
 from fastapi import APIRouter, Query, status
