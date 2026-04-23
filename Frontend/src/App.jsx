@@ -1,11 +1,17 @@
 import Header from './components/Header'
 import TicketCard from './components/TicketCard'
 
+// This acts as our temporary database until the backend is ready!
+const mockTicketData = [
+  { id: 'TKT-001', eventName: 'Summer Music Festival', seat: 'General Admission' },
+  { id: 'TKT-002', eventName: 'Tech Innovators Conference', seat: 'VIP Table 4' },
+  { id: 'TKT-003', eventName: 'Local Food Truck Fiesta', seat: 'Entry Pass' }
+]
+
 function App() {
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '20px', maxWidth: '800px', margin: '0 auto', color: '#333' }}>
       
-      {/* We just drop the Header component in like a custom HTML tag! */}
       <Header />
 
       <main style={{ marginTop: '20px' }}>
@@ -15,8 +21,15 @@ function App() {
           <p>Manage your upcoming events and access your digital tickets below.</p>
         </section>
 
-        {/* And we drop the Ticket Card in here! */}
-        <TicketCard />
+        {/* The Magic Loop: For every ticket in our fake database, render a TicketCard and pass it the data */}
+        {mockTicketData.map((ticket) => (
+          <TicketCard 
+            key={ticket.id} 
+            eventName={ticket.eventName} 
+            seat={ticket.seat} 
+            ticketId={ticket.id}
+          />
+        ))}
 
       </main>
     </div>

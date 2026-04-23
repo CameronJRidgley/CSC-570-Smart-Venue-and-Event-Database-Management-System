@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function TicketCard() {
+function TicketCard({ eventName, seat, ticketId }) {
   const [showQR, setShowQR] = useState(false)
 
   return (
