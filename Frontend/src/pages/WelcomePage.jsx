@@ -1,3 +1,8 @@
+// Author: Nicco Hill
+// WelcomePage.jsx — Landing page shown to unauthenticated visitors.
+// Provides entry points to Log In and Create Account, and displays
+// the five supported user roles as informational tags.
+
 import { useNavigate } from 'react-router-dom'
 
 function WelcomePage() {
@@ -15,16 +20,18 @@ function WelcomePage() {
           <button style={styles.primaryBtn} onClick={() => navigate('/login')}>
             Log In
           </button>
-          <button style={styles.secondaryBtn} onClick={() => navigate('/login')}>
+          <button style={styles.secondaryBtn} onClick={() => navigate('/register')}>
             Create Account
           </button>
         </div>
         <div style={styles.roles}>
           <span style={styles.roleTag}>Attendee</span>
-          <span style={styles.roleTag}>Staff</span>
-          <span style={styles.roleTag}>Organizer</span>
           <span style={styles.roleTag}>Vendor</span>
+          <span style={{ ...styles.roleTag, ...styles.roleTagAdmin }}>Admin</span>
+          <span style={styles.roleTag}>Organizer</span>
+          <span style={styles.roleTag}>Security</span>
         </div>
+
       </div>
     </div>
   )
@@ -114,6 +121,20 @@ const styles = {
     fontSize: '13px',
     padding: '4px 12px',
     borderRadius: '20px',
+  },
+  roleTagAdmin: {
+    background: '#fee2e2',
+    color: '#991b1b',
+  },
+  vendorCta: {
+    marginTop: '20px',
+    fontSize: '13px',
+    color: '#888',
+  },
+  vendorLink: {
+    color: '#004080',
+    fontWeight: '600',
+    cursor: 'pointer',
   },
 }
 

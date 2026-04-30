@@ -1,3 +1,8 @@
+// Author: Nicco Hill
+// MyTickets.jsx — Displays the logged-in attendee's purchased tickets.
+// Each ticket card shows event details, seat info, ticket type, price, and status badge.
+// A "Show QR" toggle fetches and displays a QR code the attendee can scan at entry.
+
 import { useState } from 'react'
 
 const mockTickets = [
