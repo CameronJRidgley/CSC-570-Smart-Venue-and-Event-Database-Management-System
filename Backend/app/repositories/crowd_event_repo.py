@@ -47,5 +47,5 @@ async def latest_per_zone(event_id: int) -> List[CrowdEvent]:
         {"$replaceRoot": {"newRoot": "$doc"}},
         {"$sort": {"zone": 1}},
     ]
-    raw = await CrowdEvent.get_motor_collection().aggregate(pipeline).to_list(length=None)
+    raw = await CrowdEvent.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
     return [CrowdEvent.model_validate(doc) for doc in raw]

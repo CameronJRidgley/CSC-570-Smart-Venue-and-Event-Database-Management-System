@@ -313,7 +313,8 @@ VALUES
 ('Summer Music Festival',       '2026-06-16 16:00', '2026-06-16 23:00', 'Concert',     4500, 5000, 4),
 ('Jazz Under the Stars',        '2026-06-01 19:00', '2026-06-01 23:00', 'Concert',     2200, 3000, 5),
 ('Indie Showcase',              '2026-05-05 18:00', '2026-05-05 22:00', 'Concert',      900, 1200, 6),
-('HU Homecoming Concert',       '2026-07-01 19:00', '2026-07-01 23:30', 'Concert',     5500, 6000, 1);
+('HU Homecoming Concert',       '2026-07-01 19:00', '2026-07-01 23:30', 'Concert',     5500, 6000, 1),
+('Sunset Rooftop Mixer',        '2026-05-06 18:00', '2026-05-06 21:00', 'Social',        50,   50, 3);
 
 INSERT INTO seat
 (event_id, section, row_num, seat_num, accessibility_flag, seat_status)

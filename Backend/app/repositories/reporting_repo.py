@@ -93,7 +93,7 @@ async def peak_density_by_zone(event_id: int, top_n: int = 5) -> List[dict]:
         {"$sort": {"peak_people_count": -1}},
         {"$limit": top_n},
     ]
-    peaks = await CrowdEvent.get_motor_collection().aggregate(pipeline).to_list(length=None)
+    peaks = await CrowdEvent.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
 
     # Attach the latest document's alert_level for each zone (second quick pass).
     enriched: List[dict] = []
@@ -130,7 +130,7 @@ async def escalation_count(event_id: int) -> int:
         {"$match": {"updates.update_type": "escalation"}},
         {"$count": "n"},
     ]
-    rows = await IncidentTimeline.get_motor_collection().aggregate(pipeline).to_list(length=1)
+    rows = await IncidentTimeline.get_pymongo_collection().aggregate(pipeline).to_list(length=1)
     return int(rows[0]["n"]) if rows else 0
 
 
@@ -154,5 +154,5 @@ async def hourly_checkin_trend(event_id: int) -> List[dict]:
         },
         {"$sort": {"_id": 1}},
     ]
-    rows = await ScanLog.get_motor_collection().aggregate(pipeline).to_list(length=None)
+    rows = await ScanLog.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
     return [{"hour": r["_id"], "count": int(r["count"])} for r in rows]

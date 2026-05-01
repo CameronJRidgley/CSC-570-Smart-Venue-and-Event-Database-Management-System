@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from app.db.sql import engine
 from app.db.mongo import init_mongo, close_mongo
+from app.models.nosql import DOCUMENT_MODELS
 from app.models.sql.user import User
 from app.models.sql.venue import Venue, Seat
 from app.models.sql.event import Event
@@ -73,6 +74,8 @@ DEMO_EVENTS = [
     ("Jazz Under the Stars",       "Norfolk Waterfront",        30,  4, 2500, 55.00,  EventStatus.PUBLISHED),
     ("Indie Showcase",             "Student Union Amphitheater", 3,  4, 1000, 18.00,  EventStatus.PUBLISHED),
     ("HU Homecoming Concert",      "Hampton Coliseum",          60,  5, 6000, 125.00, EventStatus.DRAFT),
+    # A small, sold-out event to demo the "Sold Out" UI state.
+    ("Sunset Rooftop Mixer",       "Downtown Plaza",             5,  3,   50,  40.00, EventStatus.PUBLISHED),
 ]
 
 
@@ -186,6 +189,8 @@ def seed():
             "Jazz Under the Stars":       10,
             "Indie Showcase":              6,
             "March of Dimes":              4,
+            # Fully sold out — capacity == sold.
+            "Sunset Rooftop Mixer":       50,
         }
         rng = random.Random(42)
         added_tickets = 0
@@ -203,11 +208,16 @@ def seed():
             for i in range(target):
                 seat = seats[i % len(seats)]
                 attendee = attendees[i % len(attendees)]
-                # Mix statuses: ~70% valid, ~20% used, ~10% cancelled.
-                roll = rng.random()
-                t_status = (TicketStatus.USED if roll < 0.2
-                            else TicketStatus.CANCELLED if roll < 0.3
-                            else TicketStatus.VALID)
+                # Sold-out events keep every ticket VALID so spots_left == 0.
+                # Other events get a realistic mix: ~70% valid, ~20% used,
+                # ~10% cancelled.
+                if ev.name == "Sunset Rooftop Mixer":
+                    t_status = TicketStatus.VALID
+                else:
+                    roll = rng.random()
+                    t_status = (TicketStatus.USED if roll < 0.2
+                                else TicketStatus.CANCELLED if roll < 0.3
+                                else TicketStatus.VALID)
                 method = rng.choice([PaymentMethod.CARD, PaymentMethod.ONLINE, PaymentMethod.CASH])
                 p_status = (PaymentStatus.REFUNDED if t_status == TicketStatus.CANCELLED
                             else PaymentStatus.COMPLETED)
@@ -259,7 +269,7 @@ def seed():
 
 
 async def _seed_mongo():
-    await init_mongo()
+    await init_mongo(document_models=DOCUMENT_MODELS)
     rng = random.Random(7)
     try:
         # ScanLogs: emit one entry per USED ticket so the staff Check-In
@@ -269,7 +279,7 @@ async def _seed_mongo():
             used = list(s.exec(select(_T).where(_T.status == TicketStatus.USED)).all())
         added_scans = 0
         for t in used:
-            existing = await ScanLog.find_one(ScanLog.ticket_id == t.id)
+            existing = await ScanLog.find_one({"ticket_id": t.id})
             if existing:
                 continue
             await ScanLog(
@@ -278,7 +288,7 @@ async def _seed_mongo():
                 attendee_id=t.attendee_id,
                 gate=rng.choice(["Gate A", "Gate B", "VIP Gate"]),
                 qr_code=t.qr_code,
-                result=ScanResult.VALID,
+                result=ScanResult.SUCCESS,
                 manual=False,
                 device_info={"device": "scanner-01", "os": "iOS 17"},
             ).insert()
@@ -290,18 +300,28 @@ async def _seed_mongo():
             pub_events = list(s.exec(select(Event).where(Event.status == EventStatus.PUBLISHED)).all())
         zones = ["Main Stage", "East Entrance", "West Entrance", "VIP Area", "Food Court"]
         added_crowd = 0
-        for ev in pub_events[:4]:
-            existing = await CrowdEvent.find_one(CrowdEvent.event_id == ev.id)
-            if existing:
+        for ev in pub_events:
+            # Only skip if this event already has the full seeded set
+            # (12 readings). Stray manual entries shouldn't block backfill.
+            existing = await CrowdEvent.find({"event_id": ev.id}).count()
+            if existing >= 12:
                 continue
             base = datetime.utcnow() - timedelta(minutes=60)
+            # Per-zone counts are scaled to the event capacity so the
+            # overall attendance bar stays under 100% of the venue.
+            # Distribute roughly 60% of capacity across 5 zones, but cap
+            # tiny events (e.g. 50-seat sold-out mixer) to a sane floor.
+            cap = ev.capacity or 500
+            target_total = min(cap * 0.6, cap - 5)
+            zone_target = max(4, int(target_total / len(zones)))
             for i in range(12):
                 zone = zones[i % len(zones)]
-                count = rng.randint(80, 420)
-                density = round(count / 100.0, 2)
-                if count < 150:
+                # Vary ±35% around the target so cards aren't identical.
+                count = max(10, int(zone_target * rng.uniform(0.55, 1.20)))
+                density = round(count / max(zone_target, 1), 2)
+                if count < zone_target * 0.6:
                     level = CrowdAlertLevel.NORMAL
-                elif count < 280:
+                elif count < zone_target * 1.0:
                     level = CrowdAlertLevel.ELEVATED
                 else:
                     level = CrowdAlertLevel.HIGH

@@ -41,6 +41,9 @@ class Settings(BaseSettings):
 
     # Test / dev toggles
     skip_mongo_init: bool = Field(default=False)
+    # When true, every SQL statement and every Mongo command is echoed
+    # to stdout. Handy for demos / debugging — leave off in production.
+    db_echo: bool = Field(default=False)
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -17,10 +17,15 @@ from app.models.enums import TicketStatus
 class Ticket(SQLModel, table=True):
     __tablename__ = "tickets"
     __table_args__ = (
+        # A specific seat (event_id, seat_id, seat_number) can only be sold
+        # once. NULL seat_number is treated as distinct by Postgres, so
+        # General-Admission rows (no specific seat) can be sold up to
+        # `seat.capacity` times — capacity is enforced in the service layer.
         UniqueConstraint(
             "event_id",
             "seat_id",
-            name="uq_ticket_seat",          
+            "seat_number",
+            name="uq_ticket_seat",
         ),
     )
 
