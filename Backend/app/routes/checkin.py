@@ -9,6 +9,10 @@ Powers the **Staff Portal**:
 Postgres is committed (`ticket.status = 'used'`) **before** the
 corresponding ScanLog is written to Mongo — so a Mongo outage can only
 cost us audit data, never valid entries or double-entries.
+
+AI_ASSIST: The thin route layer design and dependency injection pattern
+were developed with Claude Opus 4.6. Routes delegate all logic to services,
+keeping HTTP concerns separate from business logic. See Backend/AI_ASSIST.md.
 """
 from typing import List
 

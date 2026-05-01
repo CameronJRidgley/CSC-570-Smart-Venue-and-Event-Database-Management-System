@@ -6,7 +6,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application configuration loaded from environment variables / .env file."""
+    """Application configuration loaded from environment variables / .env file.
+    
+    AI_ASSIST: Configuration pattern using Pydantic BaseSettings was
+    developed with Claude Opus 4.6. This approach provides type validation,
+    .env file support, and clear separation of environment concerns.
+    See Backend/AI_ASSIST.md for full development attribution.
+    """
 
     # App
     app_env: str = Field(default="development")

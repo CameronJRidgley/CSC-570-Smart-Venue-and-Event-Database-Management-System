@@ -8,6 +8,9 @@ Powers the **Attendee Portal** modules:
 
 Also used by the **Organizer Dashboard** when pre-filling event pickers.
 Thin HTTP layer — all business logic lives in `ticketing_service`.
+
+AI_ASSIST: Endpoint design and pagination patterns were developed with
+Claude Opus 4.6. See Backend/AI_ASSIST.md for full architecture attribution.
 """
 from typing import List
 

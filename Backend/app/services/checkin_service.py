@@ -8,6 +8,12 @@ Design notes:
       can audit fraud/invalid-QR patterns.
     * Scan logs are best-effort: if Mongo is unreachable the gate must
       still work — we log the error and return the SQL-backed result.
+
+AI_ASSIST: The resilience-by-design pattern (commit to Postgres first,
+then best-effort audit to MongoDB) was developed with Claude Opus 4.6.
+The pure decision function (_evaluate) pattern and error handling strategy
+were AI-suggested to ensure gates never fail due to Mongo latency.
+See Backend/AI_ASSIST.md for the full architecture rationale.
 """
 from dataclasses import dataclass
 from datetime import datetime
