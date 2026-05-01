@@ -24,12 +24,12 @@ class Settings(BaseSettings):
 
     # PostgreSQL
     database_url: str = Field(
-        default="postgresql+psycopg://postgres:postgres@localhost:5432/event_mgmt"
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/570SQL"
     )
 
     # MongoDB
     mongo_url: str = Field(default="mongodb://localhost:27017")
-    mongo_db_name: str = Field(default="event_mgmt")
+    mongo_db_name: str = Field(default="CSC570")
 
     # Auth / JWT
     jwt_secret: str = Field(default="change-me-in-production-please")
