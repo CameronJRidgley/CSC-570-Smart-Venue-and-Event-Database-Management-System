@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../api'
 
 const STAFF_ROLES = [
   { id: 'admin',     label: 'Admin',     desc: 'Full system access',        color: '#dc2626', bg: '#fee2e2' },
@@ -64,21 +65,15 @@ function RegisterPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: form.firstName,
-          last_name:  form.lastName,
-          email:      form.email,
-          password:   form.password,
-          role,
-          business:   form.business || undefined,
-          pending:    accountType === 'staff',
-        }),
+      const data = await api.register({
+        first_name: form.firstName,
+        last_name:  form.lastName,
+        email:      form.email,
+        password:   form.password,
+        role,
+        business:   form.business || undefined,
+        pending:    accountType === 'staff',
       })
-      const data = await res.json()
-      if (!res.ok) { setErrors({ email: data?.error?.message || 'Registration failed.' }); return }
 
       if (accountType === 'staff') {
         setSubmitted(true)
@@ -87,7 +82,13 @@ function RegisterPage() {
         localStorage.setItem('user', JSON.stringify(data.user))
         navigate('/dashboard')
       }
-    } catch {
+    } catch (err) {
+      // If backend reachable but rejected, show error; otherwise fall back to mock.
+      if (err?.status && err.status !== 0) {
+        setErrors({ email: err.message || 'Registration failed.' })
+        setLoading(false)
+        return
+      }
       // Backend offline — mock
       if (accountType === 'staff') {
         setSubmitted(true)

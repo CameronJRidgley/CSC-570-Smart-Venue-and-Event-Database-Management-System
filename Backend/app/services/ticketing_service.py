@@ -70,6 +70,21 @@ def list_events(session: Session, skip: int = 0, limit: int = 100) -> List[Event
     return event_repo.list_events(session, skip=skip, limit=limit)
 
 
+def create_event(session: Session, payload) -> Event:
+    """Create a new event. Verifies the venue exists."""
+    from app.models.sql.venue import Venue
+    if not session.get(Venue, payload.venue_id):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Venue {payload.venue_id} does not exist")
+    event = Event(**payload.model_dump())
+    return event_repo.create_event(session, event)
+
+
+def list_venues(session: Session):
+    from app.models.sql.venue import Venue
+    from sqlmodel import select
+    return list(session.exec(select(Venue)).all())
+
+
 def get_event_or_404(session: Session, event_id: int) -> Event:
     event = event_repo.get_event(session, event_id)
     if not event:

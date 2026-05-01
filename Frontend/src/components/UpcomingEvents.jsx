@@ -4,7 +4,29 @@
 // expandable "More Analytics" panel (ticket breakdown, capacity bar, full vendor list),
 // and a Sold Out state that disables ticket purchase when capacity is reached.
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { api } from '../api'
+
+// Adapter: backend EventRead -> shape this component renders.
+function adaptEvent(e) {
+  const start = new Date(e.starts_at)
+  const end   = new Date(e.ends_at)
+  return {
+    id: e.id,
+    name: e.name,
+    type: e.type || 'Event',
+    date: start.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+    isoDate: start.toISOString().slice(0, 10),
+    time: `${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} – ${end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`,
+    venue: e.venue_name || `Venue #${e.venue_id}`,
+    city: e.city || '',
+    capacity: e.capacity ?? 0,
+    spotsLeft: e.spots_left ?? e.capacity ?? 0,
+    price: e.price ?? 0,
+    vendors: e.vendors || [],
+    analytics: e.analytics || { vip: 0, general: 0, peakHour: '—', avgAge: 0 },
+  }
+}
 
 const mockEvents = [
   {
@@ -250,10 +272,33 @@ function EventCard({ event }) {
 function UpcomingEvents() {
   const [query, setQuery] = useState('')
   const [date, setDate]   = useState('')
+  const [events, setEvents] = useState(mockEvents)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api.listEvents()
+      .then(rows => {
+        if (cancelled) return
+        const adapted = (rows || []).map(adaptEvent)
+        // Use API data if any, otherwise keep mocks for demo continuity.
+        setEvents(adapted.length ? adapted : mockEvents)
+        setError(null)
+      })
+      .catch(err => {
+        if (cancelled) return
+        console.warn('Falling back to mock events:', err.message)
+        setError(err.message)
+        setEvents(mockEvents)
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return mockEvents.filter(e => {
+    return events.filter(e => {
       const matchesText = !q ||
         e.name.toLowerCase().includes(q) ||
         e.city.toLowerCase().includes(q) ||
@@ -261,11 +306,17 @@ function UpcomingEvents() {
       const matchesDate = !date || e.isoDate >= date
       return matchesText && matchesDate
     })
-  }, [query, date])
+  }, [query, date, events])
 
   return (
     <div>
       <h2 style={styles.heading}>Upcoming Events</h2>
+      {loading && <p style={{ color: '#6b7280', margin: '0 0 12px' }}>Loading events…</p>}
+      {error && !loading && (
+        <p style={{ color: '#92400e', background: '#fef3c7', padding: '8px 12px', borderRadius: 8, margin: '0 0 12px' }}>
+          Showing demo data — backend unreachable ({error})
+        </p>
+      )}
 
       <div style={styles.searchBar}>
         <div style={styles.searchField}>

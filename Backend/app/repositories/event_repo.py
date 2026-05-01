@@ -18,3 +18,10 @@ def get_event_for_update(session: Session, event_id: int) -> Optional[Event]:
     """Row-level lock on the event so concurrent purchases serialize."""
     stmt = select(Event).where(Event.id == event_id).with_for_update()
     return session.exec(stmt).first()
+
+
+def create_event(session: Session, event: Event) -> Event:
+    session.add(event)
+    session.commit()
+    session.refresh(event)
+    return event

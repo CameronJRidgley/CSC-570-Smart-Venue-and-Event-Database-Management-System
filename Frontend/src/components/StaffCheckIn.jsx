@@ -4,7 +4,8 @@
 // it as checked in. Handles three states: success, already checked in, and invalid.
 // Maintains a running log of all successful check-ins for the current session.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../api'
 
 const VALID_TICKETS = {
   'TK-001': { name: 'Alex Johnson',    event: 'Spring Music Festival', type: 'VIP',              checkedIn: false },
@@ -19,21 +20,55 @@ function StaffCheckIn() {
   const [result, setResult] = useState(null)
   const [log, setLog] = useState([])
   const [tickets, setTickets] = useState(VALID_TICKETS)
+  const [events, setEvents] = useState([])
+  const [eventId, setEventId] = useState('')
+  const [usingApi, setUsingApi] = useState(false)
 
-  function handleCheckIn(e) {
+  useEffect(() => {
+    api.listEvents()
+      .then(rows => {
+        if (rows && rows.length) {
+          setEvents(rows)
+          setEventId(rows[0].id)
+          setUsingApi(true)
+        }
+      })
+      .catch(() => { /* fall back to mock */ })
+  }, [])
+
+  async function handleCheckIn(e) {
     e.preventDefault()
     const id = ticketId.trim().toUpperCase()
 
-    if (!tickets[id]) {
-      setResult({ status: 'invalid', id })
-      return
+    // Real API path: scan QR against an event
+    if (usingApi && eventId) {
+      try {
+        const res = await api.scanCheckin({ qr_code: ticketId.trim(), event_id: Number(eventId) })
+        if (res.approved) {
+          const entry = {
+            id,
+            name: res.attendee_name || 'Attendee',
+            event: events.find(ev => ev.id === Number(eventId))?.name || '',
+            type: 'Ticket',
+            time: new Date().toLocaleTimeString(),
+          }
+          setResult({ status: 'success', ...entry })
+          setLog(l => [entry, ...l])
+          setTicketId('')
+        } else {
+          const status = (res.reason || '').includes('used') ? 'already' : 'invalid'
+          setResult({ status, id, name: res.attendee_name || '', event: '' })
+        }
+        return
+      } catch (err) {
+        // Fall through to mock if API fails
+        console.warn('Scan API failed, using mock:', err.message)
+      }
     }
 
-    if (tickets[id].checkedIn) {
-      setResult({ status: 'already', id, ...tickets[id] })
-      return
-    }
-
+    // Mock fallback
+    if (!tickets[id]) { setResult({ status: 'invalid', id }); return }
+    if (tickets[id].checkedIn) { setResult({ status: 'already', id, ...tickets[id] }); return }
     const entry = { ...tickets[id], id, time: new Date().toLocaleTimeString() }
     setTickets(t => ({ ...t, [id]: { ...t[id], checkedIn: true } }))
     setResult({ status: 'success', ...entry })
@@ -46,13 +81,26 @@ function StaffCheckIn() {
       <h2 style={styles.heading}>Check-In Scanner</h2>
 
       <div style={styles.card}>
-        <p style={styles.hint}>Enter a ticket ID to check in an attendee. Try: TK-001, TK-002, TK-003, TK-005</p>
+        <p style={styles.hint}>
+          {usingApi
+            ? 'Scan or enter a ticket QR code. The scan is validated against the selected event.'
+            : 'Enter a ticket ID to check in an attendee. (Demo mode — try TK-001…TK-005)'}
+        </p>
+
+        {usingApi && events.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ ...styles.hint, fontWeight: 600 }}>Event</label>
+            <select value={eventId} onChange={e => setEventId(e.target.value)} style={{ ...styles.input, fontFamily: 'inherit', letterSpacing: 0 }}>
+              {events.map(ev => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
+            </select>
+          </div>
+        )}
 
         <form onSubmit={handleCheckIn} style={styles.form}>
           <input
             value={ticketId}
             onChange={e => setTicketId(e.target.value)}
-            placeholder="e.g. TK-001"
+            placeholder={usingApi ? 'Paste QR code…' : 'e.g. TK-001'}
             style={styles.input}
             autoFocus
           />

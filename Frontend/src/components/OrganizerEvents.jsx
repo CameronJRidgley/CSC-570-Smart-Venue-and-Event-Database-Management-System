@@ -6,7 +6,8 @@
 //   "Manage Vendors" — assign vendors from the available pool or remove existing ones.
 // Events pending admin approval are flagged with a ⏳ badge.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../api'
 
 const AVAILABLE_VENDORS = [
   { id: 1, name: 'Artisan Coffee Co.',  type: 'Food & Beverage' },
@@ -67,6 +68,40 @@ const VENDOR_TYPE_COLORS = {
 function OrganizerEvents() {
   const [events, setEvents] = useState(INITIAL_EVENTS)
   const [openPanel, setOpenPanel] = useState({})   // { [eventId]: 'attendees' | 'vendors' | null }
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([api.listEvents(), api.listVenues().catch(() => [])])
+      .then(([rows, venues]) => {
+        if (cancelled) return
+        const venueMap = Object.fromEntries((venues || []).map(v => [v.id, v]))
+        const adapted = (rows || []).map(e => {
+          const v = venueMap[e.venue_id]
+          const start = new Date(e.starts_at)
+          return {
+            id: e.id,
+            name: e.name,
+            date: start.toISOString().slice(0, 10),
+            time: start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+            venue: v?.name || `Venue #${e.venue_id}`,
+            city: v?.city || '',
+            capacity: e.capacity || 0,
+            sold: 0,
+            price: 0,
+            status: (e.status || 'draft').charAt(0).toUpperCase() + (e.status || 'draft').slice(1),
+            attendees: { vip: 0, general: 0 },
+            vendorIds: [],
+          }
+        })
+        setEvents(adapted.length ? adapted : INITIAL_EVENTS)
+        setError(null)
+      })
+      .catch(err => { if (!cancelled) setError(err.message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   function togglePanel(id, panel) {
     setOpenPanel(p => ({ ...p, [id]: p[id] === panel ? null : panel }))
@@ -94,10 +129,16 @@ function OrganizerEvents() {
         <h2 style={styles.heading}>My Events</h2>
         <span style={styles.count}>{events.length} events</span>
       </div>
+      {loading && <p style={{ color: '#6b7280' }}>Loading events…</p>}
+      {error && !loading && (
+        <p style={{ color: '#92400e', background: '#fef3c7', padding: '8px 12px', borderRadius: 8 }}>
+          Showing demo events — {error}
+        </p>
+      )}
 
       <div style={styles.list}>
         {events.map(ev => {
-          const pct        = Math.round((ev.sold / ev.capacity) * 100)
+          const pct        = ev.capacity ? Math.round((ev.sold / ev.capacity) * 100) : 0
           const revenue    = (ev.sold * ev.price).toLocaleString()
           const sc         = STATUS_COLORS[ev.status] || STATUS_COLORS.Approved
           const panel      = openPanel[ev.id] || null

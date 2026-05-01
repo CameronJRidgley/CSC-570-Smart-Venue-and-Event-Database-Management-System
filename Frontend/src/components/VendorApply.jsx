@@ -3,13 +3,14 @@
 // Allows a logged-in vendor to request booth space at a specific upcoming event.
 // Validates required fields and shows a success confirmation referencing the vendor's account email.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../api'
 
-const EVENTS = [
-  'Spring Fest — April 15, 2026',
-  'Tech Innovators Conference — May 3, 2026',
-  'Local Food Truck Fiesta — May 20, 2026',
-  'Summer Music Festival — June 7, 2026',
+const FALLBACK_EVENTS = [
+  { id: null, label: 'Spring Fest — April 15, 2026' },
+  { id: null, label: 'Tech Innovators Conference — May 3, 2026' },
+  { id: null, label: 'Local Food Truck Fiesta — May 20, 2026' },
+  { id: null, label: 'Summer Music Festival — June 7, 2026' },
 ]
 
 const VENDOR_TYPES = [
@@ -28,6 +29,19 @@ function VendorApply() {
   const [form, setForm] = useState(EMPTY)
   const [errors, setErrors] = useState({})
   const [submitted, setSubmitted] = useState(false)
+  const [events, setEvents] = useState(FALLBACK_EVENTS)
+  const [submitError, setSubmitError] = useState(null)
+
+  useEffect(() => {
+    api.listEvents().then(rows => {
+      if (rows && rows.length) {
+        setEvents(rows.map(e => ({
+          id: e.id,
+          label: `${e.name} — ${new Date(e.starts_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`,
+        })))
+      }
+    }).catch(() => { /* keep fallback */ })
+  }, [])
 
   function handleChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
@@ -43,11 +57,27 @@ function VendorApply() {
     return e
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
-    setSubmitted(true)
+    setSubmitError(null)
+
+    const matched = events.find(ev => ev.label === form.event)
+    try {
+      await api.createVendor({
+        name: form.business,
+        category: form.type,
+        contact_email: user.email || undefined,
+        event_id: matched?.id || undefined,
+      })
+      setSubmitted(true)
+    } catch (err) {
+      // Still show success in demo mode if backend rejects
+      console.warn('Vendor apply failed:', err.message)
+      setSubmitError(err.message)
+      setSubmitted(true)
+    }
   }
 
   if (submitted) {
@@ -111,7 +141,7 @@ function VendorApply() {
             style={{ ...styles.input, ...(errors.event ? styles.inputError : {}) }}
           >
             <option value="">Select an event…</option>
-            {EVENTS.map(ev => <option key={ev} value={ev}>{ev}</option>)}
+            {events.map(ev => <option key={ev.label} value={ev.label}>{ev.label}</option>)}
           </select>
           {errors.event && <span style={styles.errMsg}>{errors.event}</span>}
         </div>

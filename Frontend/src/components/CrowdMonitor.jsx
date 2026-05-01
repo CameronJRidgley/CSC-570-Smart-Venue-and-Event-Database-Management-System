@@ -6,8 +6,9 @@
 // The "last updated" timestamp refreshes every 30 seconds.
 
 import { useState, useEffect } from 'react'
+import { api } from '../api'
 
-const EVENTS = [
+const MOCK_EVENTS = [
   {
     id: 1,
     name: 'Spring Music Festival',
@@ -63,18 +64,66 @@ function congestionLevel(pct) {
 }
 
 function CrowdMonitor() {
-  const [selectedId, setSelectedId] = useState(EVENTS[0].id)
+  const [eventList, setEventList] = useState(MOCK_EVENTS)
+  const [selectedId, setSelectedId] = useState(MOCK_EVENTS[0].id)
   const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [loadingZones, setLoadingZones] = useState(false)
+
+  // Load real events on mount
+  useEffect(() => {
+    api.listEvents().then(rows => {
+      if (!rows || !rows.length) return
+      // Initialize each backend event with empty zones; we'll fetch on select
+      const enriched = rows.map(e => ({
+        id: e.id,
+        name: e.name,
+        date: new Date(e.starts_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+        totalCapacity: e.capacity || 0,
+        currentAttendance: 0,
+        zones: [],
+        _real: true,
+      }))
+      setEventList(enriched)
+      setSelectedId(enriched[0].id)
+    }).catch(() => { /* keep mock */ })
+  }, [])
+
+  // When the user selects a real event, fetch zone snapshot + thresholds
+  useEffect(() => {
+    const ev = eventList.find(e => e.id === selectedId)
+    if (!ev || !ev._real) return
+    let cancelled = false
+    setLoadingZones(true)
+    Promise.all([
+      api.getCrowdZones(selectedId).catch(() => null),
+      // Thresholds endpoint not exposed individually; rely on zone latest data only
+    ]).then(([snapshot]) => {
+      if (cancelled) return
+      const zones = (snapshot?.zones || []).map(z => {
+        const cur = z.latest?.people_count ?? 0
+        // No capacity per zone in DB; estimate as max of current * 1.25 or 100
+        const cap = Math.max(Math.ceil(cur * 1.25), 100)
+        return { name: z.zone, capacity: cap, current: cur }
+      })
+      const total = zones.reduce((s, z) => s + z.current, 0)
+      setEventList(list => list.map(e => e.id === selectedId
+        ? { ...e, zones, currentAttendance: total }
+        : e))
+      setLastUpdated(new Date())
+      setLoadingZones(false)
+    })
+    return () => { cancelled = true }
+  }, [selectedId, eventList.length])
 
   useEffect(() => {
     const t = setInterval(() => setLastUpdated(new Date()), 30000)
     return () => clearInterval(t)
   }, [])
 
-  const event    = EVENTS.find(e => e.id === selectedId)
-  const overallPct = Math.round((event.currentAttendance / event.totalCapacity) * 100)
+  const event    = eventList.find(e => e.id === selectedId) || eventList[0]
+  const overallPct = event.totalCapacity ? Math.round((event.currentAttendance / event.totalCapacity) * 100) : 0
   const overallLevel = congestionLevel(overallPct)
-  const criticalZones = event.zones.filter(z => Math.round((z.current / z.capacity) * 100) >= 90)
+  const criticalZones = (event.zones || []).filter(z => z.capacity && Math.round((z.current / z.capacity) * 100) >= 90)
 
   return (
     <div>
@@ -89,10 +138,16 @@ function CrowdMonitor() {
         onChange={e => setSelectedId(Number(e.target.value))}
         style={styles.eventSelect}
       >
-        {EVENTS.map(ev => (
+        {eventList.map(ev => (
           <option key={ev.id} value={ev.id}>{ev.name} — {ev.date}</option>
         ))}
       </select>
+      {loadingZones && <p style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Loading zone data…</p>}
+      {event._real && !loadingZones && event.zones.length === 0 && (
+        <p style={{ color: '#92400e', background: '#fef3c7', padding: '8px 12px', borderRadius: 8, marginBottom: 16 }}>
+          No crowd readings have been recorded for this event yet.
+        </p>
+      )}
 
       {/* Overall summary */}
       <div style={{ ...styles.overallCard, borderColor: overallLevel.bar }}>

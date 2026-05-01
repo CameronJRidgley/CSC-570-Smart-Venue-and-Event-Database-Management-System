@@ -4,34 +4,72 @@
 // On submission the event is NOT immediately published — it enters a pending state
 // and must be approved by an admin before appearing in the public events listing.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../api'
 
-const EMPTY = { name: '', date: '', time: '', venue: '', city: '', capacity: '', price: '', description: '' }
+const EMPTY = { name: '', date: '', time: '', endTime: '', venue_id: '', capacity: '', price: '', description: '' }
 
 function CreateEvent() {
   const [form, setForm] = useState(EMPTY)
   const [submitted, setSubmitted] = useState(false)
+  const [venues, setVenues] = useState([])
+  const [error, setError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [createdEvent, setCreatedEvent] = useState(null)
+
+  useEffect(() => {
+    api.listVenues()
+      .then(setVenues)
+      .catch(err => console.warn('Could not load venues:', err.message))
+  }, [])
 
   function handleChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    setSubmitted(true)
+    setError(null)
+    setSubmitting(true)
+    try {
+      const startISO = new Date(`${form.date}T${form.time}`).toISOString()
+      // Default to a 4-hour event if no end time provided
+      const endStr = form.endTime || form.time
+      const endDate = new Date(`${form.date}T${endStr}`)
+      if (!form.endTime) endDate.setHours(endDate.getHours() + 4)
+      const endISO = endDate.toISOString()
+
+      const payload = {
+        name: form.name,
+        description: form.description || null,
+        venue_id: Number(form.venue_id),
+        starts_at: startISO,
+        ends_at: endISO,
+        capacity: Number(form.capacity),
+        status: 'draft',
+      }
+      const created = await api.createEvent(payload)
+      setCreatedEvent(created)
+      setSubmitted(true)
+    } catch (err) {
+      setError(err.message || 'Failed to create event')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (submitted) {
+    const venueName = venues.find(v => v.id === createdEvent?.venue_id)?.name || 'venue'
     return (
       <div style={styles.successBox}>
         <div style={styles.pendingIcon}>⏳</div>
         <span style={styles.pendingBadge}>Pending Admin Approval</span>
         <h2 style={styles.successTitle}>Request Submitted!</h2>
         <p style={styles.successSub}>
-          <strong>{form.name}</strong> on {form.date} at {form.venue}, {form.city} has been sent to an admin for approval.
-          It will appear on the events page once approved.
+          <strong>{form.name}</strong> on {form.date} at {venueName} has been created (id #{createdEvent?.id})
+          and saved to the database. It will appear on the events page once approved.
         </p>
-        <button style={styles.btn} onClick={() => { setForm(EMPTY); setSubmitted(false) }}>
+        <button style={styles.btn} onClick={() => { setForm(EMPTY); setSubmitted(false); setCreatedEvent(null) }}>
           Submit Another Event
         </button>
       </div>
@@ -42,6 +80,12 @@ function CreateEvent() {
     <div>
       <h2 style={styles.heading}>Create New Event</h2>
 
+      {error && (
+        <div style={{ background: '#fee2e2', color: '#991b1b', padding: '12px 16px', borderRadius: 8, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} style={styles.form}>
         <div style={styles.row}>
           <Field label="Event Name" name="name" value={form.name} onChange={handleChange} placeholder="e.g. Summer Jazz Night" required full />
@@ -49,17 +93,26 @@ function CreateEvent() {
 
         <div style={styles.row}>
           <Field label="Date" name="date" type="date" value={form.date} onChange={handleChange} required />
-          <Field label="Time" name="time" type="time" value={form.time} onChange={handleChange} required />
+          <Field label="Start Time" name="time" type="time" value={form.time} onChange={handleChange} required />
+          <Field label="End Time" name="endTime" type="time" value={form.endTime} onChange={handleChange} />
         </div>
 
-        <div style={styles.row}>
-          <Field label="Venue Name" name="venue" value={form.venue} onChange={handleChange} placeholder="e.g. Riverside Arena" required />
-          <Field label="City" name="city" value={form.city} onChange={handleChange} placeholder="e.g. Austin, TX" required />
+        <div style={styles.fieldFull}>
+          <label style={styles.label}>Venue</label>
+          <select name="venue_id" value={form.venue_id} onChange={handleChange} required style={styles.input}>
+            <option value="">— Select a venue —</option>
+            {venues.map(v => (
+              <option key={v.id} value={v.id}>{v.name} ({v.city}) — capacity {v.total_capacity}</option>
+            ))}
+          </select>
+          {venues.length === 0 && (
+            <small style={{ color: '#92400e' }}>No venues found. Ask an admin to add one before creating events.</small>
+          )}
         </div>
 
         <div style={styles.row}>
           <Field label="Capacity" name="capacity" type="number" value={form.capacity} onChange={handleChange} placeholder="e.g. 500" min="1" required />
-          <Field label="Ticket Price ($)" name="price" type="number" value={form.price} onChange={handleChange} placeholder="e.g. 45" min="0" step="0.01" required />
+          <Field label="Ticket Price ($)" name="price" type="number" value={form.price} onChange={handleChange} placeholder="e.g. 45" min="0" step="0.01" />
         </div>
 
         <div style={styles.fieldFull}>
@@ -74,7 +127,9 @@ function CreateEvent() {
           />
         </div>
 
-        <button type="submit" style={styles.btn}>Create Event</button>
+        <button type="submit" style={styles.btn} disabled={submitting}>
+          {submitting ? 'Creating…' : 'Create Event'}
+        </button>
       </form>
     </div>
   )

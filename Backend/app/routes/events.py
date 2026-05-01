@@ -14,12 +14,13 @@ Claude Opus 4.6. See Backend/AI_ASSIST.md for full architecture attribution.
 """
 from typing import List
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, status
 
 from app.core.dependencies import SessionDep
 from app.schemas.availability import EventAvailability
-from app.schemas.event import EventRead
+from app.schemas.event import EventCreate, EventRead
 from app.schemas.seating import SeatRead
+from app.schemas.venue import VenueRead
 from app.services import ticketing_service
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -32,6 +33,11 @@ def get_events(
     limit: int = Query(100, ge=1, le=500),
 ):
     return ticketing_service.list_events(session, skip=skip, limit=limit)
+
+
+@router.post("", response_model=EventRead, status_code=status.HTTP_201_CREATED)
+def create_event(payload: EventCreate, session: SessionDep):
+    return ticketing_service.create_event(session, payload)
 
 
 @router.get("/{event_id}", response_model=EventRead)
@@ -48,3 +54,12 @@ def get_event_seats(event_id: int, session: SessionDep):
 @router.get("/{event_id}/availability", response_model=EventAvailability)
 def get_event_availability(event_id: int, session: SessionDep):
     return ticketing_service.compute_availability(session, event_id)
+
+
+# Venues router (small, lives here so we don't need a separate file)
+venues_router = APIRouter(prefix="/venues", tags=["venues"])
+
+
+@venues_router.get("", response_model=List[VenueRead])
+def list_venues(session: SessionDep):
+    return ticketing_service.list_venues(session)

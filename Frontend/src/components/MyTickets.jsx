@@ -3,7 +3,31 @@
 // Each ticket card shows event details, seat info, ticket type, price, and status badge.
 // A "Show QR" toggle fetches and displays a QR code the attendee can scan at entry.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../api'
+
+// Adapter: backend TicketRead -> shape this component renders.
+function adaptTicket(t, eventMap = {}, venueMap = {}) {
+  const ev = eventMap[t.event_id]
+  const start = ev ? new Date(ev.starts_at) : null
+  const venue = ev && venueMap[ev.venue_id]
+  return {
+    id: `TKT-${String(t.id).padStart(3, '0')}`,
+    eventName: ev?.name || `Event #${t.event_id}`,
+    date: start ? start.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '',
+    time: start ? start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '',
+    venue: venue?.name || '',
+    section: t.seat_number || 'General Admission',
+    row: null,
+    seat: null,
+    type: 'General',
+    price: t.price,
+    status: (t.status || 'valid').toLowerCase() === 'valid' ? 'valid'
+          : (t.status || '').toLowerCase() === 'used' ? 'used'
+          : 'cancelled',
+    qrData: t.qr_code,
+  }
+}
 
 const mockTickets = [
   {
@@ -114,14 +138,53 @@ function TicketCard({ ticket }) {
 }
 
 function MyTickets() {
+  const [tickets, setTickets] = useState(mockTickets)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const me = await api.me().catch(() => null)
+        if (!me?.id) throw new Error('Not authenticated')
+        const rows = await api.getUserTickets(me.id)
+        if (cancelled) return
+        // Pull events + venues to enrich ticket display
+        const events = await api.listEvents().catch(() => [])
+        const venues = await api.listVenues().catch(() => [])
+        const eventMap = Object.fromEntries(events.map(e => [e.id, e]))
+        const venueMap = Object.fromEntries(venues.map(v => [v.id, v]))
+        const adapted = (rows || []).map(t => adaptTicket(t, eventMap, venueMap))
+        setTickets(adapted.length ? adapted : mockTickets)
+        setError(null)
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message)
+          setTickets(mockTickets)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <div>
       <h2 style={styles.heading}>My Tickets</h2>
-      {mockTickets.length === 0 ? (
+      {loading && <p style={{ color: '#6b7280' }}>Loading tickets…</p>}
+      {error && !loading && (
+        <p style={{ color: '#92400e', background: '#fef3c7', padding: '8px 12px', borderRadius: 8 }}>
+          Showing demo tickets — {error}
+        </p>
+      )}
+      {tickets.length === 0 ? (
         <p style={{ color: '#888' }}>You don't have any tickets yet.</p>
       ) : (
         <div style={styles.list}>
-          {mockTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
+          {tickets.map(t => <TicketCard key={t.id} ticket={t} />)}
         </div>
       )}
     </div>

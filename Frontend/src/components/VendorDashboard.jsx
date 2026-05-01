@@ -3,7 +3,8 @@
 // Shows booth assignment info, summary stats (total sold, revenue, active listings),
 // and a detailed listings table with per-item sales bars and status badges.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../api'
 
 const mockListings = [
   { id: 1, name: 'Artisan Coffee', category: 'Food & Beverage', price: 5.50,  sold: 142, stock: 200, event: 'Spring Fest',           status: 'Active' },
@@ -26,7 +27,55 @@ const STATUS_COLORS = {
 }
 
 function VendorDashboard() {
-  const [listings] = useState(mockListings)
+  const [listings, setListings] = useState(mockListings)
+  const [vendor, setVendor] = useState(null)
+  const [eventName, setEventName] = useState(boothInfo.event)
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const vendors = await api.listVendors()
+        if (!vendors || !vendors.length) throw new Error('No vendors registered yet')
+        // Pick first vendor; in a real app this would be the logged-in vendor's id
+        const v = vendors[0]
+        if (cancelled) return
+        setVendor(v)
+        const sales = await api.getVendorSales(v.id).catch(() => [])
+        // Aggregate sales by item_description into pseudo-listings
+        const byItem = {}
+        for (const s of sales) {
+          const key = s.item_description || 'Item'
+          if (!byItem[key]) {
+            byItem[key] = { id: key, name: key, category: s.item_category || 'General', price: s.unit_price, sold: 0, stock: 0, event: '', status: 'Active' }
+          }
+          byItem[key].sold += s.quantity
+        }
+        const aggregated = Object.values(byItem).map(l => ({
+          ...l,
+          stock: Math.max(l.sold, 1),  // No real stock tracking — show sold as basis
+          event: v.event_id ? `Event #${v.event_id}` : '',
+        }))
+        if (v.event_id) {
+          api.getEvent(v.event_id).then(ev => {
+            if (!cancelled && ev) setEventName(ev.name)
+          }).catch(() => {})
+        }
+        if (!cancelled) {
+          setListings(aggregated.length ? aggregated : [])
+          setError(null)
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.message)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
 
   const totalRevenue = listings.reduce((sum, l) => sum + l.sold * l.price, 0)
   const totalSold    = listings.reduce((sum, l) => sum + l.sold, 0)
@@ -34,12 +83,18 @@ function VendorDashboard() {
   return (
     <div>
       <h2 style={styles.heading}>Vendor Dashboard</h2>
+      {loading && <p style={{ color: '#6b7280' }}>Loading vendor data…</p>}
+      {error && !loading && (
+        <p style={{ color: '#92400e', background: '#fef3c7', padding: '8px 12px', borderRadius: 8 }}>
+          Showing demo data — {error}
+        </p>
+      )}
 
       {/* Booth info banner */}
       <div style={styles.boothCard}>
         <div>
-          <div style={styles.boothTitle}>{boothInfo.location}</div>
-          <div style={styles.boothMeta}>{boothInfo.zone} &nbsp;·&nbsp; {boothInfo.event} &nbsp;·&nbsp; {boothInfo.date}</div>
+          <div style={styles.boothTitle}>{vendor?.booth_number ? `Booth ${vendor.booth_number}` : boothInfo.location}</div>
+          <div style={styles.boothMeta}>{vendor?.category || boothInfo.zone} &nbsp;·&nbsp; {eventName}</div>
         </div>
         <span style={styles.activeBadge}>Active</span>
       </div>
