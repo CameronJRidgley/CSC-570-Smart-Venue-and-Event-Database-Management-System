@@ -277,7 +277,7 @@ INSERT INTO staff
 (staff_first_name, staff_last_name, staff_role, contact_num)
 VALUES
 ('Marcus', 'Brown', 'security', '7575551111'),
-('Tiana', 'James', 'vendor', '7575552222'),
+('Tiana', 'James', 'organizer', '7575552222'),
 ('Alex', 'Smith', 'admin', '7575553333');
 
 INSERT INTO vendor

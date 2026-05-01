@@ -138,7 +138,7 @@ const vendorTypeColors = {
   'Services':        { bg: '#ede9fe', text: '#5b21b6' },
 }
 
-function EventCard({ event }) {
+function EventCard({ event, onBuy }) {
   const [expanded, setExpanded] = useState(false)
   const tag       = typeColors[event.type] || { bg: '#f3f4f6', text: '#374151' }
   const isFull    = event.spotsLeft === 0
@@ -193,7 +193,7 @@ function EventCard({ event }) {
           <button style={styles.analyticsBtn} onClick={() => setExpanded(x => !x)}>
             {expanded ? 'Hide Analytics ▲' : 'More Analytics ▼'}
           </button>
-          <button style={isFull ? styles.buyBtnDisabled : styles.buyBtn} disabled={isFull}>
+          <button style={isFull ? styles.buyBtnDisabled : styles.buyBtn} disabled={isFull} onClick={() => onBuy && onBuy(event)}>
             {isFull ? 'Sold Out' : 'Buy Ticket'}
           </button>
         </div>
@@ -275,6 +275,7 @@ function UpcomingEvents() {
   const [events, setEvents] = useState(mockEvents)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [buyEvent, setBuyEvent] = useState(null)   // event being purchased
 
   useEffect(() => {
     let cancelled = false
@@ -355,16 +356,155 @@ function UpcomingEvents() {
             <p style={styles.resultCount}>{filtered.length} event{filtered.length !== 1 ? 's' : ''} found</p>
           )}
           <div style={styles.list}>
-            {filtered.map(e => <EventCard key={e.id} event={e} />)}
+            {filtered.map(e => <EventCard key={e.id} event={e} onBuy={setBuyEvent} />)}
           </div>
         </>
       )}
+      {buyEvent && (
+        <PaymentModal
+          event={buyEvent}
+          onClose={() => setBuyEvent(null)}
+          onSuccess={() => {
+            setBuyEvent(null)
+            // Refresh events so spots-left counters update
+            api.listEvents().then(rows => {
+              const adapted = (rows || []).map(adaptEvent)
+              if (adapted.length) setEvents(adapted)
+            }).catch(() => {})
+          }}
+        />
+      )}    </div>
+  )
+}
+
+// Mock payment modal: collects fake card info, calls api.purchaseTicket(),
+// then either confirms success (saving ticket to SQL) or shows the error.
+function PaymentModal({ event, onClose, onSuccess }) {
+  const [name,    setName]    = useState('')
+  const [card,    setCard]    = useState('4242 4242 4242 4242')
+  const [exp,     setExp]     = useState('12/28')
+  const [cvc,     setCvc]     = useState('123')
+  const [busy,    setBusy]    = useState(false)
+  const [error,   setError]   = useState('')
+  const [success, setSuccess] = useState(null)
+
+  const me = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || 'null') } catch { return null }
+  })()
+
+  const validCard = card.replace(/\s/g, '').length >= 12 && /^\d{2}\/\d{2}$/.test(exp) && cvc.length >= 3
+
+  async function handlePay(e) {
+    e.preventDefault()
+    setError('')
+    setBusy(true)
+    try {
+      const seats = await api.getEventSeats(event.id).catch(() => [])
+      const seat  = seats[0]
+      if (!seat) throw new Error('No seats configured for this event')
+
+      const attendee = {
+        full_name: name || me?.full_name || me?.email?.split('@')[0] || 'Guest',
+        email:     me?.email || `guest_${Date.now()}@example.com`,
+      }
+
+      const resp = await api.purchaseTicket({
+        event_id:       event.id,
+        seat_id:        seat.id,
+        attendee,
+        payment_method: 'card',
+      })
+      setSuccess(resp.ticket)
+    } catch (err) {
+      setError(err.message || 'Payment failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={styles.modalBackdrop} onClick={onClose}>
+      <div style={styles.modalCard} onClick={e => e.stopPropagation()}>
+        {success ? (
+          <div style={styles.modalSuccess}>
+            <div style={styles.modalCheck}>✓</div>
+            <h3 style={styles.modalTitle}>Payment confirmed</h3>
+            <p style={styles.modalSub}>
+              Ticket #{success.id} added to your wallet.<br/>
+              View it under <strong>My Tickets</strong>.
+            </p>
+            <div style={styles.modalActions}>
+              <button style={styles.modalPay} onClick={onSuccess}>Done</button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handlePay}>
+            <h3 style={styles.modalTitle}>Checkout</h3>
+            <p style={styles.modalSub}>{event.name} — {event.date}</p>
+            {error && <div style={styles.modalError}>{error}</div>}
+            <div style={styles.modalSummary}>
+              <div>{event.venue}</div>
+              <div style={{ color: '#6b7280', marginTop: 4 }}>1× General Admission</div>
+              <div style={styles.modalTotal}>
+                <span>Total</span>
+                <span>${event.price.toFixed(2)}</span>
+              </div>
+            </div>
+            <div style={styles.modalField}>
+              <label style={styles.modalLabel}>Name on card</label>
+              <input style={styles.modalInput} value={name} onChange={e => setName(e.target.value)} placeholder="Jane Doe" required />
+            </div>
+            <div style={styles.modalField}>
+              <label style={styles.modalLabel}>Card number</label>
+              <input style={styles.modalInput} value={card} onChange={e => setCard(e.target.value)} placeholder="4242 4242 4242 4242" required />
+            </div>
+            <div style={styles.modalRow}>
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Expiry</label>
+                <input style={styles.modalInput} value={exp} onChange={e => setExp(e.target.value)} placeholder="MM/YY" required />
+              </div>
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>CVC</label>
+                <input style={styles.modalInput} value={cvc} onChange={e => setCvc(e.target.value)} placeholder="123" required />
+              </div>
+            </div>
+            <div style={styles.modalActions}>
+              <button type="button" style={styles.modalCancel} onClick={onClose} disabled={busy}>Cancel</button>
+              <button type="submit" style={(busy || !validCard) ? styles.modalPayDis : styles.modalPay} disabled={busy || !validCard}>
+                {busy ? 'Processing…' : `Pay $${event.price.toFixed(2)}`}
+              </button>
+            </div>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 12, textAlign: 'center' }}>
+              Demo mode — no real charge. Any card details accepted.
+            </p>
+          </form>
+        )}
+      </div>
     </div>
   )
 }
 
 const styles = {
   heading: { fontSize: '20px', fontWeight: '700', color: '#003366', margin: '0 0 20px' },
+
+  // Payment modal
+  modalBackdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '20px' },
+  modalCard:     { background: 'white', borderRadius: '14px', maxWidth: '460px', width: '100%', padding: '28px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  modalTitle:    { fontSize: '20px', fontWeight: '700', color: '#003366', margin: '0 0 4px' },
+  modalSub:      { fontSize: '13px', color: '#6b7280', margin: '0 0 20px' },
+  modalRow:      { display: 'flex', gap: '10px' },
+  modalField:    { display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, marginBottom: '14px' },
+  modalLabel:    { fontSize: '13px', fontWeight: '600', color: '#374151' },
+  modalInput:    { padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none' },
+  modalSummary:  { background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#374151' },
+  modalTotal:    { display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '700', color: '#111', marginTop: '8px', borderTop: '1px solid #e5e7eb', paddingTop: '8px' },
+  modalActions:  { display: 'flex', gap: '10px', marginTop: '8px' },
+  modalCancel:   { flex: 1, background: 'white', color: '#374151', border: '1px solid #d1d5db', padding: '11px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+  modalPay:      { flex: 2, background: '#004080', color: 'white', border: 'none', padding: '11px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+  modalPayDis:   { flex: 2, background: '#9ca3af', color: 'white', border: 'none', padding: '11px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'not-allowed' },
+  modalError:    { background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', marginBottom: '12px' },
+  modalSuccess:  { textAlign: 'center', padding: '20px 0' },
+  modalCheck:    { fontSize: '48px', marginBottom: '12px' },
 
   searchBar: {
     display: 'flex', alignItems: 'center', background: 'white',
