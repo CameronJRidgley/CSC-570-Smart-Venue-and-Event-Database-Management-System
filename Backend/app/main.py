@@ -8,6 +8,11 @@ Responsibilities (keep thin):
     - configure CORS
     - manage DB lifecycle (Mongo init/close)
     - register routers
+
+AI_ASSIST: This module's structure and lifespan context manager pattern
+were developed with Claude Opus 4.6 (Anthropic). The layered architecture
+(routes → services → repositories) was AI-suggested to ensure clean
+separation of concerns and testability. See Backend/AI_ASSIST.md for details.
 """
 from contextlib import asynccontextmanager
 

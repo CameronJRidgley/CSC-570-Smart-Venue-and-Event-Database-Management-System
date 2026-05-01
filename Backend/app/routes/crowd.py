@@ -11,6 +11,11 @@ Every ingested reading is classified against per-event/per-zone
 thresholds (stored in Mongo) as normal / elevated / high / critical.
 Missing thresholds never cause ingestion to fail — the reading is
 stored as `normal` with a note in the response.
+
+AI_ASSIST: Crowd classification logic and threshold storage design were
+developed with Claude Opus 4.6. The approach of storing thresholds in
+MongoDB allows real-time tuning without API restart.
+See Backend/AI_ASSIST.md for details.
 """
 from typing import List
 
