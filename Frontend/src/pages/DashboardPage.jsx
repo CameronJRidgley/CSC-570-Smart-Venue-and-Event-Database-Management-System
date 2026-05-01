@@ -45,6 +45,13 @@ const ROLE_TABS = {
     { id: 'crowd',     label: 'Crowd Monitor', component: CrowdMonitor },
     { id: 'personnel', label: 'Personnel',  component: PersonnelAssignment },
   ],
+  // Backend stores generic staff users with role='staff' (UserRole.STAFF).
+  // They get the same dashboard as a security officer.
+  staff: [
+    { id: 'checkin',   label: 'Check-In',      component: StaffCheckIn },
+    { id: 'crowd',     label: 'Crowd Monitor', component: CrowdMonitor },
+    { id: 'personnel', label: 'Personnel',     component: PersonnelAssignment },
+  ],
 }
 
 const ROLE_COLORS = {
@@ -53,6 +60,7 @@ const ROLE_COLORS = {
   admin:     { bg: '#fee2e2', text: '#991b1b' },
   organizer: { bg: '#ede9fe', text: '#5b21b6' },
   security:  { bg: '#d1fae5', text: '#065f46' },
+  staff:     { bg: '#d1fae5', text: '#065f46' },
 }
 
 const ROLE_LABELS = {
@@ -61,6 +69,7 @@ const ROLE_LABELS = {
   admin:     'Admin',
   organizer: 'Organizer',
   security:  'Security',
+  staff:     'Staff',
 }
 
 function DashboardPage() {

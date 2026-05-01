@@ -196,6 +196,9 @@ def purchase_ticket(
         attendee = _resolve_attendee(session, req)
 
         # 7. Create ticket (with unique QR token).
+        # Price comes from the event's organizer-set ticket_price when
+        # available, otherwise falls back to the seat's base price.
+        unit_price = float(event.ticket_price) if event.ticket_price is not None else float(seat.base_price)
         token = qr_service.generate_token()
         ticket = ticket_repo.create_ticket(
             session,
@@ -204,7 +207,7 @@ def purchase_ticket(
             attendee_id=attendee.id,
             seat_number=req.seat_number,
             qr_code=token,
-            price=seat.base_price,
+            price=unit_price,
         )
 
         # 8. Create payment. In this milestone we simulate success; a real
@@ -213,7 +216,7 @@ def purchase_ticket(
             session,
             ticket_id=ticket.id,
             attendee_id=attendee.id,
-            amount=seat.base_price,
+            amount=unit_price,
             method=req.payment_method,
             status=PaymentStatus.COMPLETED,
             transaction_ref=uuid4().hex,

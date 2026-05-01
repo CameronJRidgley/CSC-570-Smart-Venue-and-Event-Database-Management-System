@@ -138,7 +138,7 @@ const vendorTypeColors = {
   'Services':        { bg: '#ede9fe', text: '#5b21b6' },
 }
 
-function EventCard({ event, onBuy }) {
+function EventCard({ event, onBuy, owned }) {
   const [expanded, setExpanded] = useState(false)
   const tag       = typeColors[event.type] || { bg: '#f3f4f6', text: '#374151' }
   const isFull    = event.spotsLeft === 0
@@ -193,9 +193,13 @@ function EventCard({ event, onBuy }) {
           <button style={styles.analyticsBtn} onClick={() => setExpanded(x => !x)}>
             {expanded ? 'Hide Analytics ▲' : 'More Analytics ▼'}
           </button>
-          <button style={isFull ? styles.buyBtnDisabled : styles.buyBtn} disabled={isFull} onClick={() => onBuy && onBuy(event)}>
-            {isFull ? 'Sold Out' : 'Buy Ticket'}
-          </button>
+          {owned ? (
+            <button style={styles.buyBtnOwned} disabled>Ticket Purchased ✓</button>
+          ) : (
+            <button style={isFull ? styles.buyBtnDisabled : styles.buyBtn} disabled={isFull} onClick={() => onBuy && onBuy(event)}>
+              {isFull ? 'Sold Out' : 'Buy Ticket'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -276,6 +280,18 @@ function UpcomingEvents() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [buyEvent, setBuyEvent] = useState(null)   // event being purchased
+  const [ownedIds, setOwnedIds] = useState(() => new Set())
+
+  // Load tickets the current user already owns so we can hide "Buy" for those events.
+  async function refreshOwned() {
+    try {
+      const me = await api.me().catch(() => null)
+      if (!me?.id) { setOwnedIds(new Set()); return }
+      const rows = await api.getUserTickets(me.id).catch(() => [])
+      const active = (rows || []).filter(t => t.status !== 'cancelled' && t.status !== 'refunded')
+      setOwnedIds(new Set(active.map(t => t.event_id)))
+    } catch { setOwnedIds(new Set()) }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -294,6 +310,7 @@ function UpcomingEvents() {
         setEvents(mockEvents)
       })
       .finally(() => { if (!cancelled) setLoading(false) })
+    refreshOwned()
     return () => { cancelled = true }
   }, [])
 
@@ -356,7 +373,7 @@ function UpcomingEvents() {
             <p style={styles.resultCount}>{filtered.length} event{filtered.length !== 1 ? 's' : ''} found</p>
           )}
           <div style={styles.list}>
-            {filtered.map(e => <EventCard key={e.id} event={e} onBuy={setBuyEvent} />)}
+            {filtered.map(e => <EventCard key={e.id} event={e} onBuy={setBuyEvent} owned={ownedIds.has(e.id)} />)}
           </div>
         </>
       )}
@@ -366,11 +383,12 @@ function UpcomingEvents() {
           onClose={() => setBuyEvent(null)}
           onSuccess={() => {
             setBuyEvent(null)
-            // Refresh events so spots-left counters update
+            // Refresh events so spots-left counters update, plus owned list.
             api.listEvents().then(rows => {
               const adapted = (rows || []).map(adaptEvent)
               if (adapted.length) setEvents(adapted)
             }).catch(() => {})
+            refreshOwned()
           }}
         />
       )}    </div>
@@ -551,6 +569,7 @@ const styles = {
   analyticsBtn: { background: 'white', color: '#004080', border: '1px solid #004080', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' },
   buyBtn:         { background: '#004080', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' },
   buyBtnDisabled: { background: '#e5e7eb', color: '#9ca3af', border: 'none', padding: '10px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'not-allowed', whiteSpace: 'nowrap' },
+  buyBtnOwned:    { background: '#d1fae5', color: '#065f46', border: '1px solid #a7f3d0', padding: '10px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: '700', cursor: 'default', whiteSpace: 'nowrap' },
 
   // Analytics panel
   analyticsPanel: { marginTop: '20px', borderTop: '1px solid #e5e7eb', paddingTop: '20px' },

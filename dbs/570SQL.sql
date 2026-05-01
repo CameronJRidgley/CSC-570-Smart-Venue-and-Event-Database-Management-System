@@ -265,66 +265,122 @@ CREATE INDEX idx_vendor_sale_event_id ON vendor_sale(event_id);
 INSERT INTO venue
 (venue_name, venue_address, venue_city, venue_state, venue_zip, max_capacity, indoor_outdoor_flag)
 VALUES
-('Hampton Coliseum', '1610 Coliseum Dr', 'Hampton', 'VA', '23666', 5000, 'I');
+('Hampton Coliseum',           '1610 Coliseum Dr',  'Hampton',        'VA', '23666', 5000, 'I'),
+('Convention Center',          '500 Main St',       'Dallas',         'TX', '75201', 2000, 'I'),
+('Downtown Plaza',             '1 Plaza Way',       'Houston',        'TX', '77002', 1500, 'O'),
+('Riverside Park',             '123 River Rd',      'Austin',         'TX', '78701', 5000, 'O'),
+('Norfolk Waterfront',         '22 Wharf Ln',       'Norfolk',        'VA', '23510', 3000, 'O'),
+('Student Union Amphitheater', '100 E Queen St',    'Hampton',        'VA', '23668', 1200, 'O');
 
 INSERT INTO attendee
 (first_name, last_name, email, phone_num)
 VALUES
-('Zay', 'Lombre', 'zay@example.com', '7575551234'),
-('Mike', 'Johnson', 'mike@example.com', '7575552222');
+('Zay',     'Lombre',  'zay@example.com',          '7575551234'),
+('Mike',    'Johnson', 'mike@example.com',         '7575552222'),
+('Jane',    'Doe',     'jane.doe@gmail.com',       '7575553301'),
+('Bob',     'Smith',   'bob.smith@yahoo.com',      '7575553302'),
+('Carol',   'Jones',   'carol.jones@mail.com',     '7575553303'),
+('Mark',    'Lee',     'mark.lee@gmail.com',       '7575553304'),
+('Sara',    'Kim',     'sara.kim@gmail.com',       '7575553305'),
+('Tony',    'Garcia',  'tony.garcia@yahoo.com',    '7575553306');
 
 INSERT INTO staff
 (staff_first_name, staff_last_name, staff_role, contact_num)
 VALUES
-('Marcus', 'Brown', 'security', '7575551111'),
-('Tiana', 'James', 'organizer', '7575552222'),
-('Alex', 'Smith', 'admin', '7575553333');
+('Marcus',  'Brown',  'security',  '7575551111'),
+('Tiana',   'James',  'organizer', '7575552222'),
+('Alex',    'Smith',  'admin',     '7575553333'),
+('Diana',   'Diaz',   'security',  '7575554401'),
+('Ethan',   'Park',   'security',  '7575554402'),
+('Felicia', 'Reed',   'organizer', '7575554403');
 
 INSERT INTO vendor
 (vendor_name, vendor_type, contact_name, contact_num, contact_email)
 VALUES
-('Campus Eats', 'Food', 'Jordan Lee', '7575554444', 'campuseats@example.com'),
-('Event Merch Co.', 'Merchandise', 'Taylor Green', '7575555555', 'merch@example.com');
+('Campus Eats',         'Food',        'Jordan Lee',     '7575554444', 'campuseats@example.com'),
+('Event Merch Co.',     'Merchandise', 'Taylor Green',   '7575555555', 'merch@example.com'),
+('Artisan Coffee Co.',  'Food',        'Riley Stone',    '7575556601', 'coffee@example.com'),
+('Smoky BBQ Truck',     'Food',        'Sam Pierce',     '7575556602', 'bbq@example.com'),
+('Craft Lemonade Co.',  'Food',        'Nina Bell',      '7575556603', 'lemon@example.com'),
+('Vista Photography',   'Service',     'Owen Hart',      '7575556604', 'vista@example.com');
 
 INSERT INTO event
 (event_name, start_time, end_time, event_type, exp_attendance, max_capacity, venue_id)
 VALUES
-('Spring Fest', '2026-04-15 18:00', '2026-04-15 22:00', 'Concert', 4000, 5000, 1);
+('Spring Fest',                 '2026-04-15 18:00', '2026-04-15 22:00', 'Concert',     4000, 5000, 1),
+('Tech Innovators Conference',  '2026-05-23 09:00', '2026-05-23 17:00', 'Conference',  1500, 2000, 2),
+('Local Food Truck Fiesta',     '2026-05-16 11:00', '2026-05-16 20:00', 'Festival',    1200, 1500, 3),
+('Summer Music Festival',       '2026-06-16 16:00', '2026-06-16 23:00', 'Concert',     4500, 5000, 4),
+('Jazz Under the Stars',        '2026-06-01 19:00', '2026-06-01 23:00', 'Concert',     2200, 3000, 5),
+('Indie Showcase',              '2026-05-05 18:00', '2026-05-05 22:00', 'Concert',      900, 1200, 6),
+('HU Homecoming Concert',       '2026-07-01 19:00', '2026-07-01 23:30', 'Concert',     5500, 6000, 1);
 
 INSERT INTO seat
 (event_id, section, row_num, seat_num, accessibility_flag, seat_status)
 VALUES
-(1, 'A', 1, 1, 'Y', 'available'),
-(1, 'A', 1, 2, 'N', 'available'),
-(1, 'B', 1, 1, 'N', 'available');
+(1, 'A',   1, 1, 'Y', 'available'),
+(1, 'A',   1, 2, 'N', 'available'),
+(1, 'B',   1, 1, 'N', 'available'),
+(1, 'VIP', 1, 1, 'N', 'available'),
+(2, 'F',   1, 1, 'N', 'available'),
+(2, 'F',   1, 2, 'N', 'available'),
+(3, 'GA',  1, 1, 'N', 'available'),
+(4, 'L',   1, 1, 'N', 'available'),
+(4, 'L',   1, 2, 'N', 'available'),
+(5, 'GA',  1, 1, 'N', 'available'),
+(6, 'GA',  1, 1, 'N', 'available');
 
 INSERT INTO payment
 (attendee_id, amount, payment_method, transaction_reference)
 VALUES
-(1, 99.99, 'card', 'TXN12345'),
-(2, 75.00, 'online', 'TXN67890');
+(1, 99.99,  'card',   'TXN12345'),
+(2, 75.00,  'online', 'TXN67890'),
+(3, 149.00, 'card',   'TXN20001'),
+(4, 15.00,  'cash',   'TXN20002'),
+(5, 89.00,  'card',   'TXN20003'),
+(6, 55.00,  'online', 'TXN20004'),
+(7, 18.00,  'card',   'TXN20005'),
+(8, 125.00, 'card',   'TXN20006');
 
 INSERT INTO ticket
 (event_id, seat_id, attendee_id, payment_id, ticket_type, qr_code, ticket_price)
 VALUES
-(1, 1, 1, 1, 'VIP', 'QR123ABC', 99.99),
-(1, 2, 2, 2, 'General', 'QR456DEF', 75.00);
+(1, 1,  1, 1, 'VIP',     'QR123ABC', 99.99),
+(1, 2,  2, 2, 'General', 'QR456DEF', 75.00),
+(2, 5,  3, 3, 'VIP',     'QR777CON', 149.00),
+(3, 7,  4, 4, 'General', 'QR888FOO', 15.00),
+(4, 8,  5, 5, 'General', 'QR999SUM', 89.00),
+(5, 10, 6, 6, 'General', 'QR101JAZ', 55.00),
+(6, 11, 7, 7, 'General', 'QR202IND', 18.00),
+(1, 4,  8, 8, 'VIP',     'QR303HOM', 125.00);
 
 INSERT INTO staff_vendor_assignment
 (staff_id, vendor_id, event_id, assignment_role, assignment_start, assignment_end)
 VALUES
-(2, 1, 1, 'Vendor Booth Manager', '2026-04-15 17:00', '2026-04-15 22:30');
+(2, 1, 1, 'Vendor Booth Manager',  '2026-04-15 17:00', '2026-04-15 22:30'),
+(6, 3, 2, 'Vendor Booth Manager',  '2026-05-23 08:00', '2026-05-23 17:30'),
+(2, 4, 3, 'Vendor Booth Manager',  '2026-05-16 10:00', '2026-05-16 20:30'),
+(6, 5, 4, 'Vendor Booth Manager',  '2026-06-16 15:00', '2026-06-16 23:30');
 
 INSERT INTO vendor_sale
 (vendor_id, event_id, sale_amount)
 VALUES
 (1, 1, 245.75),
-(2, 1, 180.50);
+(2, 1, 180.50),
+(3, 2, 412.00),
+(4, 3, 638.25),
+(5, 3, 197.40),
+(1, 4, 1024.10),
+(6, 5, 350.00);
 
 INSERT INTO incident
 (event_id, staff_id, venue_id, incident_type, severity_level, incident_description, incident_time, status, resolution_notes)
 VALUES
-(1, 1, 1, 'Crowd Control', 'Medium', 'Large crowd formed near entrance gate.', '2026-04-15 18:30', 'resolved', 'Security redirected attendees to another entrance.');
+(1, 1, 1, 'Crowd Control',  'Medium', 'Large crowd formed near entrance gate.',          '2026-04-15 18:30', 'resolved',  'Security redirected attendees to another entrance.'),
+(2, 4, 2, 'Medical',        'Low',    'Attendee felt faint at booth A-03.',              '2026-05-23 11:15', 'resolved',  'On-site medic provided water and rest.'),
+(3, 5, 3, 'Lost Property',  'Low',    'Reported lost phone near food row.',              '2026-05-16 14:45', 'resolved',  'Returned to owner at info booth.'),
+(4, 1, 4, 'Crowd Control',  'High',   'Pit area exceeded safe density during headliner.','2026-06-16 21:30', 'escalated', 'Capacity team paused entry; reopened in 10 min.'),
+(5, 4, 5, 'Noise Complaint','Low',    'Neighborhood complaint logged.',                  '2026-06-01 22:10', 'closed',    'Volume reduced after 22:30 per ordinance.');
 
 -- =========================================
 -- TEST QUERIES

@@ -26,13 +26,29 @@ from app.services import ticketing_service
 router = APIRouter(prefix="/events", tags=["events"])
 
 
+def _enrich(event, session) -> EventRead:
+    """Build an EventRead with derived `price` (event price or min seat) and `spots_left`."""
+    from app.repositories import seat_repo, ticket_repo
+    seats = seat_repo.list_seats_by_venue(session, event.venue_id)
+    if event.ticket_price is not None:
+        price = float(event.ticket_price)
+    else:
+        price = float(min((s.base_price for s in seats), default=0.0)) if seats else 0.0
+    sold = ticket_repo.count_active_tickets_for_event(session, event.id)
+    data = EventRead.model_validate(event).model_dump()
+    data["price"] = price
+    data["spots_left"] = max(event.capacity - sold, 0)
+    return EventRead(**data)
+
+
 @router.get("", response_model=List[EventRead])
 def get_events(
     session: SessionDep,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
 ):
-    return ticketing_service.list_events(session, skip=skip, limit=limit)
+    events = ticketing_service.list_events(session, skip=skip, limit=limit)
+    return [_enrich(e, session) for e in events]
 
 
 @router.post("", response_model=EventRead, status_code=status.HTTP_201_CREATED)
@@ -42,7 +58,7 @@ def create_event(payload: EventCreate, session: SessionDep):
 
 @router.get("/{event_id}", response_model=EventRead)
 def get_event(event_id: int, session: SessionDep):
-    return ticketing_service.get_event_or_404(session, event_id)
+    return _enrich(ticketing_service.get_event_or_404(session, event_id), session)
 
 
 @router.get("/{event_id}/seats", response_model=List[SeatRead])

@@ -13,6 +13,7 @@ class EventBase(BaseModel):
     starts_at: datetime
     ends_at: datetime
     capacity: int = Field(ge=0)
+    ticket_price: Optional[float] = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _ends_after_starts(self):
@@ -31,6 +32,7 @@ class EventUpdate(BaseModel):
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     capacity: Optional[int] = Field(default=None, ge=0)
+    ticket_price: Optional[float] = Field(default=None, ge=0)
     status: Optional[EventStatus] = None
 
 
@@ -40,3 +42,7 @@ class EventRead(EventBase):
     status: EventStatus
     created_at: datetime
     updated_at: datetime
+    # Derived helpers for the attendee browser. Optional so internal callers
+    # who construct EventRead directly from an ORM row don't have to fill them.
+    price: Optional[float] = None
+    spots_left: Optional[int] = None

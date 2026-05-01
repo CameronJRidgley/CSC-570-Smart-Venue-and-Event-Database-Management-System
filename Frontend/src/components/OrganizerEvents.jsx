@@ -80,6 +80,13 @@ function OrganizerEvents() {
         const adapted = (rows || []).map(e => {
           const v = venueMap[e.venue_id]
           const start = new Date(e.starts_at)
+          const cap = e.capacity || 0
+          const left = e.spots_left ?? cap
+          const sold = Math.max(0, cap - left)
+          // Rough VIP/general split — without a tier breakdown we estimate
+          // 20% VIP for any event that has a price >= $75.
+          const vipShare = (e.price || 0) >= 75 ? 0.2 : 0.05
+          const vip = Math.round(sold * vipShare)
           return {
             id: e.id,
             name: e.name,
@@ -87,11 +94,11 @@ function OrganizerEvents() {
             time: start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
             venue: v?.name || `Venue #${e.venue_id}`,
             city: v?.city || '',
-            capacity: e.capacity || 0,
-            sold: 0,
-            price: 0,
+            capacity: cap,
+            sold,
+            price: e.price || 0,
             status: (e.status || 'draft').charAt(0).toUpperCase() + (e.status || 'draft').slice(1),
-            attendees: { vip: 0, general: 0 },
+            attendees: { vip, general: sold - vip },
             vendorIds: [],
           }
         })

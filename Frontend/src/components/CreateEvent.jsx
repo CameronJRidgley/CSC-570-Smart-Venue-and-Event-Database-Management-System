@@ -46,6 +46,7 @@ function CreateEvent() {
         starts_at: startISO,
         ends_at: endISO,
         capacity: Number(form.capacity),
+        ticket_price: form.price === '' ? null : Number(form.price),
         status: 'draft',
       }
       const created = await api.createEvent(payload)

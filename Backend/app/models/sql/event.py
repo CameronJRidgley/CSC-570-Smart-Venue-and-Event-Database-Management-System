@@ -24,6 +24,9 @@ class Event(SQLModel, table=True):
 
     status: EventStatus = Field(default=EventStatus.DRAFT, index=True)
     capacity: int = Field(ge=0)
+    # Per-event ticket price set by the organizer at creation time.
+    # Falls back to the venue's seat base_price when not set.
+    ticket_price: Optional[float] = Field(default=None, ge=0)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
