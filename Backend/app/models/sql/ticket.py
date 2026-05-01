@@ -1,10 +1,10 @@
 """Ticket table.
 
-A Ticket binds an Attendee to an Event + SeatingSection, at an optional
-specific seat. `qr_code` is a unique opaque token embedded in the
+A Ticket binds an Attendee to an Event + Seat, at an optional specific
+seat number. `qr_code` is a unique opaque token embedded in the
 generated QR image and scanned at check-in. Uniqueness of
-(event_id, seating_section_id, seat_number) prevents double-booking of a
-specific seat within a section.
+(event_id, seat_id, seat_number) prevents double-booking of a specific
+seat within a seat block.
 """
 from datetime import datetime
 from typing import Optional
@@ -19,16 +19,16 @@ class Ticket(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint(
             "event_id",
-            "seating_section_id",
-            "seat_number",
-            name="uq_ticket_event_section_seat",
+            "seat_id",
+            name="uq_ticket_seat",          
         ),
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     event_id: int = Field(foreign_key="events.id", index=True)
-    seating_section_id: int = Field(foreign_key="seating_sections.id", index=True)
+    seat_id: int = Field(foreign_key="seats.id", index=True)   
     attendee_id: int = Field(foreign_key="attendees.id", index=True)
+  
 
     seat_number: Optional[str] = Field(default=None, max_length=20)
     qr_code: str = Field(max_length=128, unique=True, index=True)

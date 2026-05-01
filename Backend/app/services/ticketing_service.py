@@ -1,7 +1,7 @@
 """Ticketing & Seating business logic.
 
 Responsibilities:
-    * event / section lookups and availability math
+    * event / seat lookups and availability math
     * transactional ticket purchase
     * ticket status transitions
 
@@ -25,12 +25,12 @@ from app.repositories import (
     attendee_repo,
     event_repo,
     payment_repo,
-    seating_repo,
+    seat_repo,
     ticket_repo,
 )
 from app.schemas.availability import (
     EventAvailability,
-    SectionAvailability,
+    SeatAvailability,
 )
 from app.schemas.ticket import (
     TicketPurchaseRequest,
@@ -77,26 +77,26 @@ def get_event_or_404(session: Session, event_id: int) -> Event:
     return event
 
 
-def list_event_sections(session: Session, event_id: int):
+def list_event_seats(session: Session, event_id: int):
     event = get_event_or_404(session, event_id)
-    return seating_repo.list_sections_by_venue(session, event.venue_id)
+    return seat_repo.list_seats_by_venue(session, event.venue_id)
 
 
 def compute_availability(session: Session, event_id: int) -> EventAvailability:
     event = get_event_or_404(session, event_id)
-    sections = seating_repo.list_sections_by_venue(session, event.venue_id)
+    seats = seat_repo.list_seats_by_venue(session, event.venue_id)
 
-    section_reports: list[SectionAvailability] = []
-    for sec in sections:
-        sold = ticket_repo.count_active_tickets_for_section(session, event.id, sec.id)
-        section_reports.append(
-            SectionAvailability(
-                section_id=sec.id,
-                section_name=sec.name,
-                tier=sec.tier,
-                capacity=sec.capacity,
+    seat_reports: list[SeatAvailability] = []
+    for seat in seats:
+        sold = ticket_repo.count_active_tickets_for_seat(session, event.id, seat.id)
+        seat_reports.append(
+            SeatAvailability(
+                seat_id=seat.id,
+                seat_name=seat.name,
+                tier=seat.tier,
+                capacity=seat.capacity,
                 sold=sold,
-                available=max(sec.capacity - sold, 0),
+                available=max(seat.capacity - sold, 0),
             )
         )
 
@@ -107,7 +107,7 @@ def compute_availability(session: Session, event_id: int) -> EventAvailability:
         total_sold=total_sold,
         total_available=max(event.capacity - total_sold, 0),
         sold_out=total_sold >= event.capacity,
-        sections=section_reports,
+        sections=seat_reports,
     )
 
 
@@ -146,31 +146,31 @@ def purchase_ticket(
                 f"Event is {event.status.value}; tickets cannot be purchased",
             )
 
-        # 2. Validate section belongs to this event's venue.
-        section = seating_repo.get_section(session, req.seating_section_id)
-        if not section or section.venue_id != event.venue_id:
+        # 2. Validate seat belongs to this event's venue.
+        seat = seat_repo.get_seat(session, req.seat_id)
+        if not seat or seat.venue_id != event.venue_id:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Seating section does not belong to this event's venue",
+                "Seat does not belong to this event's venue",
             )
 
         # 3. Enforce event-level capacity.
         if ticket_repo.count_active_tickets_for_event(session, event.id) >= event.capacity:
             raise HTTPException(status.HTTP_409_CONFLICT, "Event is sold out")
 
-        # 4. Enforce section-level capacity.
+        # 4. Enforce seat-level capacity.
         if (
-            ticket_repo.count_active_tickets_for_section(session, event.id, section.id)
-            >= section.capacity
+            ticket_repo.count_active_tickets_for_seat(session, event.id, seat.id)
+            >= seat.capacity
         ):
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
-                f"Section '{section.name}' is sold out",
+                f"Seat '{seat.name}' is sold out",
             )
 
         # 5. If a specific seat is requested, ensure it's free.
         if req.seat_number and ticket_repo.seat_is_taken(
-            session, event.id, section.id, req.seat_number
+            session, event.id, seat.id, req.seat_number
         ):
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -185,11 +185,11 @@ def purchase_ticket(
         ticket = ticket_repo.create_ticket(
             session,
             event_id=event.id,
-            section_id=section.id,
+            seat_id=seat.id,
             attendee_id=attendee.id,
             seat_number=req.seat_number,
             qr_code=token,
-            price=section.base_price,
+            price=seat.base_price,
         )
 
         # 8. Create payment. In this milestone we simulate success; a real
@@ -198,7 +198,7 @@ def purchase_ticket(
             session,
             ticket_id=ticket.id,
             attendee_id=attendee.id,
-            amount=section.base_price,
+            amount=seat.base_price,
             method=req.payment_method,
             status=PaymentStatus.COMPLETED,
             transaction_ref=uuid4().hex,

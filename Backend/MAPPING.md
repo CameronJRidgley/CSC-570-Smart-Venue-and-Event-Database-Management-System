@@ -20,7 +20,7 @@ constraints exactly — no translation needed at ingest time.
 | `staff` | `staff` | Team columns `staff_first_name`, `staff_last_name`, `staff_role`, `contact_num` → our `first_name`, `last_name`, `role`, `phone`. |
 | `vendor` | `vendors` | Team `vendor_name`/`vendor_type`/`contact_num`/`contact_email` → our `name`/`category`/`contact_phone`/`contact_email`. |
 | `event` | `events` | Team has `start_time`/`end_time`/`event_type`/`exp_attendance`/`max_capacity`/`event_status`/`venue_id`. We track the same data with different column names — see the compat-view SQL below. |
-| `seat` | `seating_sections` | **Semantic difference.** Team row = one physical seat (`row_num`, `seat_num`, `seat_status`); ours = an abstract section with `capacity`. 
+| `seat` | `seats` | **Semantic difference.** Team row = one physical seat (`row_num`, `seat_num`, `seat_status`); ours = an abstract seat block with `capacity`. |
 | `payment` | `payments` | **Reversed FK direction.** Team: `payment → attendee`, `ticket.payment_id → payment`. Ours: `payment → ticket`. Functionally equivalent for reporting; when loading team seed data, insert payments first, then tickets. |
 | `ticket` | `tickets` | Team `ticket_status`/`ticket_price`/`qr_code`/`purchase_time` → our `status`/`price`/`qr_code`/`issued_at`. |
 | `staff_vendor_assignment` | `staff_vendor_assignments` | Column names align closely (role, start, end). |

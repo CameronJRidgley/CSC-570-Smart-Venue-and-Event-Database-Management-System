@@ -65,23 +65,23 @@ def count_active_tickets_for_event(session: Session, event_id: int) -> int:
     return int(session.exec(stmt).one())
 
 
-def count_active_tickets_for_section(
-    session: Session, event_id: int, section_id: int
+def count_active_tickets_for_seat(
+    session: Session, event_id: int, seat_id: int
 ) -> int:
     stmt = select(func.count(Ticket.id)).where(
         Ticket.event_id == event_id,
-        Ticket.seating_section_id == section_id,
+        Ticket.seat_id == seat_id,
         Ticket.status.in_(ACTIVE_STATUSES),
     )
     return int(session.exec(stmt).one())
 
 
 def seat_is_taken(
-    session: Session, event_id: int, section_id: int, seat_number: str
+    session: Session, event_id: int, seat_id: int, seat_number: str
 ) -> bool:
     stmt = select(Ticket.id).where(
         Ticket.event_id == event_id,
-        Ticket.seating_section_id == section_id,
+        Ticket.seat_id == seat_id,
         Ticket.seat_number == seat_number,
         Ticket.status.in_(ACTIVE_STATUSES),
     )
@@ -92,7 +92,7 @@ def create_ticket(
     session: Session,
     *,
     event_id: int,
-    section_id: int,
+    seat_id: int,
     attendee_id: int,
     seat_number: Optional[str],
     qr_code: str,
@@ -100,7 +100,7 @@ def create_ticket(
 ) -> Ticket:
     ticket = Ticket(
         event_id=event_id,
-        seating_section_id=section_id,
+        seat_id=seat_id,
         attendee_id=attendee_id,
         seat_number=seat_number,
         qr_code=qr_code,

@@ -200,10 +200,10 @@ backend/
 | Table | Purpose |
 |---|---|
 | `venues` | Physical locations |
-| `seating_sections` | Section capacity, tier, base price |
+| `seats` | Seat block capacity, tier, base price |
 | `events` | Event catalog with venue, timing, capacity |
 | `attendees` | Ticket buyers (unique email) |
-| `tickets` | Event + section + seat + QR; uniqueness enforced on `(event, section, seat)` |
+| `tickets` | Event + seat + seat_number + QR; uniqueness enforced on `(event, seat, seat_number)` |
 | `payments` | 1:N to tickets (refunds = new rows) |
 | `staff` | Event personnel |
 | `staff_vendor_assignments` | Staff ↔ vendor ↔ event |
@@ -507,7 +507,7 @@ keep working.
   telemetry, incident timelines, feedback, crowd thresholds).
 - **Race-safe ticket purchases.** `SELECT ... FOR UPDATE` serializes
   concurrent purchases for a given event, backed up by a DB-level unique
-  constraint on `(event_id, seating_section_id, seat_number)`.
+  constraint on `(event_id, seat_id, seat_number)`.
 - **Atomic ticket state at check-in.** Postgres is the source of truth
   for `status = USED`; the Mongo scan log is a best-effort audit trail.
   If Mongo is unavailable, gates continue to work — the log is just

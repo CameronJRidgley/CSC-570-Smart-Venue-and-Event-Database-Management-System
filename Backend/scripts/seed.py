@@ -65,7 +65,7 @@ from app.models.sql.ticket import Ticket
 from app.models.sql.user import User
 from app.models.sql.vendor import Vendor, VendorSale
 from app.models.sql.vendor_assignment import VendorEventAssignment
-from app.models.sql.venue import SeatingSection, Venue
+from app.models.sql.venue import Seat, Venue
 
 # A marker row we use to detect "already seeded".
 MARKER_EMAIL = "seed_marker@example.com"
@@ -93,7 +93,7 @@ def _wipe_sql(session: Session) -> None:
         Attendee,
         Staff,
         Vendor,
-        SeatingSection,
+        Seat,
         Event,
         Venue,
     ):
@@ -128,18 +128,18 @@ def seed_sql(session: Session) -> dict[str, list]:
     for v in venues:
         session.refresh(v)
 
-    # --- Seating sections (per venue) ----------------------------------
-    sections = [
-        SeatingSection(venue_id=venues[0].id, name="Floor",   tier=SeatingTier.GENERAL, capacity=2000, base_price=45.00),
-        SeatingSection(venue_id=venues[0].id, name="Lower",   tier=SeatingTier.PREMIUM, capacity=1800, base_price=75.00),
-        SeatingSection(venue_id=venues[0].id, name="VIP Box", tier=SeatingTier.VIP,     capacity=200,  base_price=150.00),
-        SeatingSection(venue_id=venues[1].id, name="Lawn",    tier=SeatingTier.GENERAL, capacity=800,  base_price=25.00),
-        SeatingSection(venue_id=venues[1].id, name="Reserved",tier=SeatingTier.PREMIUM, capacity=350,  base_price=55.00),
-        SeatingSection(venue_id=venues[1].id, name="Stage Pit",tier=SeatingTier.VIP,    capacity=50,   base_price=95.00),
+    # --- Seats (per venue) ---------------------------------------------
+    seats = [
+        Seat(venue_id=venues[0].id, name="Floor",    tier=SeatingTier.GENERAL, capacity=2000, base_price=45.00),
+        Seat(venue_id=venues[0].id, name="Lower",    tier=SeatingTier.PREMIUM, capacity=1800, base_price=75.00),
+        Seat(venue_id=venues[0].id, name="VIP Box",  tier=SeatingTier.VIP,     capacity=200,  base_price=150.00),
+        Seat(venue_id=venues[1].id, name="Lawn",     tier=SeatingTier.GENERAL, capacity=800,  base_price=25.00),
+        Seat(venue_id=venues[1].id, name="Reserved", tier=SeatingTier.PREMIUM, capacity=350,  base_price=55.00),
+        Seat(venue_id=venues[1].id, name="Stage Pit",tier=SeatingTier.VIP,     capacity=50,   base_price=95.00),
     ]
-    session.add_all(sections)
+    session.add_all(seats)
     session.commit()
-    for s in sections:
+    for s in seats:
         session.refresh(s)
 
     # --- Events --------------------------------------------------------
@@ -245,17 +245,17 @@ def seed_sql(session: Session) -> dict[str, list]:
     tickets: list[Ticket] = []
     payments: list[Payment] = []
 
-    def _add_ticket(event: Event, section: SeatingSection, attendee: Attendee,
-                    seat: str, status: TicketStatus,
+    def _add_ticket(event: Event, seat: Seat, attendee: Attendee,
+                    seat_number: str, status: TicketStatus,
                     method: PaymentMethod = PaymentMethod.CARD) -> Ticket:
         qr = f"TKT-{secrets.token_hex(6)}"
         ticket = Ticket(
             event_id=event.id,
-            seating_section_id=section.id,
+            seat_id=seat.id,
             attendee_id=attendee.id,
-            seat_number=seat,
+            seat_number=seat_number,
             qr_code=qr,
-            price=section.base_price,
+            price=seat.base_price,
             status=status,
             used_at=(now if status == TicketStatus.USED else None),
         )
@@ -264,7 +264,7 @@ def seed_sql(session: Session) -> dict[str, list]:
         payment = Payment(
             ticket_id=ticket.id,
             attendee_id=attendee.id,
-            amount=section.base_price,
+            amount=seat.base_price,
             method=method,
             status=PaymentStatus.COMPLETED,
             transaction_ref=f"TXN-{secrets.token_hex(4)}",
@@ -275,25 +275,25 @@ def seed_sql(session: Session) -> dict[str, list]:
         return ticket
 
     # Event 0 — Spring Fest: mix of valid + used tickets
-    _add_ticket(events[0], sections[0], attendees[0], "A12", TicketStatus.USED)
-    _add_ticket(events[0], sections[0], attendees[1], "A13", TicketStatus.USED)
-    _add_ticket(events[0], sections[0], attendees[2], "A14", TicketStatus.VALID)
-    _add_ticket(events[0], sections[1], attendees[3], "L05", TicketStatus.USED, PaymentMethod.ONLINE)
-    _add_ticket(events[0], sections[1], attendees[4], "L06", TicketStatus.VALID, PaymentMethod.ONLINE)
-    _add_ticket(events[0], sections[2], attendees[5], "V01", TicketStatus.VALID, PaymentMethod.CARD)
-    _add_ticket(events[0], sections[2], attendees[6], "V02", TicketStatus.CANCELLED)
+    _add_ticket(events[0], seats[0], attendees[0], "A12", TicketStatus.USED)
+    _add_ticket(events[0], seats[0], attendees[1], "A13", TicketStatus.USED)
+    _add_ticket(events[0], seats[0], attendees[2], "A14", TicketStatus.VALID)
+    _add_ticket(events[0], seats[1], attendees[3], "L05", TicketStatus.USED, PaymentMethod.ONLINE)
+    _add_ticket(events[0], seats[1], attendees[4], "L06", TicketStatus.VALID, PaymentMethod.ONLINE)
+    _add_ticket(events[0], seats[2], attendees[5], "V01", TicketStatus.VALID, PaymentMethod.CARD)
+    _add_ticket(events[0], seats[2], attendees[6], "V02", TicketStatus.CANCELLED)
 
     # Event 1 — Homecoming: all valid (future event)
-    _add_ticket(events[1], sections[0], attendees[7], "A22", TicketStatus.VALID)
-    _add_ticket(events[1], sections[1], attendees[8], "L11", TicketStatus.VALID, PaymentMethod.ONLINE)
-    _add_ticket(events[1], sections[2], attendees[9], "V03", TicketStatus.VALID)
+    _add_ticket(events[1], seats[0], attendees[7], "A22", TicketStatus.VALID)
+    _add_ticket(events[1], seats[1], attendees[8], "L11", TicketStatus.VALID, PaymentMethod.ONLINE)
+    _add_ticket(events[1], seats[2], attendees[9], "V03", TicketStatus.VALID)
 
     # Event 2 — Indie Showcase (ONGOING): ongoing check-ins
-    _add_ticket(events[2], sections[3], attendees[0], "LW-01", TicketStatus.USED, PaymentMethod.CASH)
-    _add_ticket(events[2], sections[3], attendees[1], "LW-02", TicketStatus.USED)
-    _add_ticket(events[2], sections[4], attendees[2], "R-04",  TicketStatus.USED, PaymentMethod.CARD)
-    _add_ticket(events[2], sections[4], attendees[3], "R-05",  TicketStatus.VALID)
-    _add_ticket(events[2], sections[5], attendees[4], "P-01",  TicketStatus.USED, PaymentMethod.CARD)
+    _add_ticket(events[2], seats[3], attendees[0], "LW-01", TicketStatus.USED, PaymentMethod.CASH)
+    _add_ticket(events[2], seats[3], attendees[1], "LW-02", TicketStatus.USED)
+    _add_ticket(events[2], seats[4], attendees[2], "R-04",  TicketStatus.USED, PaymentMethod.CARD)
+    _add_ticket(events[2], seats[4], attendees[3], "R-05",  TicketStatus.VALID)
+    _add_ticket(events[2], seats[5], attendees[4], "P-01",  TicketStatus.USED, PaymentMethod.CARD)
 
     session.commit()
     for t in tickets:
@@ -375,7 +375,7 @@ def seed_sql(session: Session) -> dict[str, list]:
 
     return {
         "venues": venues,
-        "sections": sections,
+        "seats": seats,
         "events": events,
         "attendees": attendees,
         "staff": staff,
