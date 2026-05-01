@@ -63,7 +63,7 @@ CREATE VIEW ticket AS
 SELECT
     id                       AS ticket_id,
     event_id,
-    seating_section_id       AS section_id,
+    seating_section_id       AS seat_id,
     attendee_id,
     NULL::INT                AS payment_id,  -- FK direction differs; see MAPPING.md
     COALESCE(seat_number, 'general') AS ticket_type,
@@ -73,6 +73,20 @@ SELECT
     price                    AS ticket_price
 FROM tickets;
 
+-- ---------------------------------------------------------------------
+-- seat (was seating_section in the older team SQL)
+-- ---------------------------------------------------------------------
+DROP VIEW IF EXISTS seat CASCADE;
+CREATE VIEW seat AS
+SELECT
+    id                       AS seat_id,
+    NULL::INT                AS event_id,          -- our sections live at venue level
+    name                     AS section,
+    NULL::INT                AS row_num,           -- not modeled at row granularity
+    NULL::INT                AS seat_num,
+    'N'::CHAR(1)             AS accessibility_flag,
+    'available'::VARCHAR     AS seat_status
+FROM seating_sections;
 -- ---------------------------------------------------------------------
 -- payment
 -- ---------------------------------------------------------------------
