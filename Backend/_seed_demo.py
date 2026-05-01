@@ -15,7 +15,7 @@ DEMO_USERS = [
     ("staff@example.com",         "staff123!",      UserRole.STAFF,      "Demo Staff",        "2025-02-01"),
     ("admin@example.com",         "admin123!",      UserRole.ADMIN,      "Demo Admin",        "2024-12-15"),
     ("security@example.com",      "security123!",   UserRole.STAFF,      "Demo Security",     "2025-02-10"),
-    ("vendor@example.com",        "vendor123!",     UserRole.ATTENDEE,   "Demo Vendor",       "2025-01-20"),
+    ("vendor@example.com",        "vendor123!",     UserRole.VENDOR,     "Demo Vendor",       "2025-01-20"),
     ("jane.doe@gmail.com",        "password123!",   UserRole.ATTENDEE,   "Jane Doe",          "2025-03-22"),
     ("bob.smith@yahoo.com",       "password123!",   UserRole.ATTENDEE,   "Bob Smith",         "2025-02-14"),
     ("carol.jones@mail.com",      "password123!",   UserRole.ORGANIZER,  "Carol Jones",       "2025-01-30"),

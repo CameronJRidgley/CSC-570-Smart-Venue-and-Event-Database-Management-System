@@ -28,12 +28,14 @@ from app.models.nosql import DOCUMENT_MODELS
 from app.models.sql import *  # noqa: F401,F403  eagerly register SQLModel tables
 from app.routes import (
     auth,
+    admin,
     checkin,
     crowd,
     events,
     health,
     incidents,
     reports,
+    staff,
     tickets,
     vendor_sales,
     vendors,
@@ -87,3 +89,5 @@ app.include_router(vendors.router, prefix=settings.api_v1_prefix)
 app.include_router(vendor_sales.router, prefix=settings.api_v1_prefix)
 app.include_router(crowd.router, prefix=settings.api_v1_prefix)
 app.include_router(reports.router, prefix=settings.api_v1_prefix)
+app.include_router(staff.router, prefix=settings.api_v1_prefix)
+app.include_router(admin.router, prefix=settings.api_v1_prefix)

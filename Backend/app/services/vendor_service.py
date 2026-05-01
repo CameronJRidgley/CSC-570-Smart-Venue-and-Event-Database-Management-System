@@ -20,6 +20,7 @@ from app.schemas.vendor import (
     VendorSaleCreate,
     VendorSaleRead,
     VendorTotal,
+    VendorUpdate,
 )
 
 
@@ -66,6 +67,21 @@ def create_vendor(session: Session, payload: VendorCreate) -> VendorRead:
         event_id=payload.event_id,
     )
     vendor = vendor_repo.create_vendor(session, vendor)
+    return VendorRead.model_validate(vendor)
+
+
+def update_vendor(
+    session: Session, vendor_id: int, payload: VendorUpdate
+) -> VendorRead:
+    vendor = _get_vendor_or_404(session, vendor_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "event_id" in data and data["event_id"] is not None:
+        _assert_event_exists(session, data["event_id"])
+    for k, v in data.items():
+        setattr(vendor, k, v)
+    session.add(vendor)
+    session.commit()
+    session.refresh(vendor)
     return VendorRead.model_validate(vendor)
 
 

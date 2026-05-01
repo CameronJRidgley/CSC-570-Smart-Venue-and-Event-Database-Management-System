@@ -7,7 +7,8 @@
 // Each item can be approved (with optional note), rejected (with optional note), or undone.
 // Items are filtered by status: Pending / Approved / Rejected.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../api'
 
 const INITIAL_ACCOUNTS = [
   { id: 20, type: 'account', name: 'Tyler Brooks',  email: 'tyler.b@example.com',  role: 'organizer', submitted: '2026-04-27', status: 'pending', note: '' },
@@ -38,8 +39,74 @@ function AdminApprovals() {
   const [vendors, setVendors]   = useState(INITIAL_VENDORS)
   const [accounts, setAccounts] = useState(INITIAL_ACCOUNTS)
   const [tab, setTab]           = useState('pending')
-  const [noteModal, setNoteModal] = useState(null) // { id, kind, action }
+  const [noteModal, setNoteModal] = useState(null)
   const [noteText, setNoteText]   = useState('')
+  const [loading, setLoading]   = useState(true)
+
+  // Load real vendor applications + events from the backend.
+  // Approval status is stored locally per-id in localStorage so admin
+  // decisions persist across refreshes (until a real status column exists).
+  useEffect(() => {
+    const decisions = JSON.parse(localStorage.getItem('approval_decisions') || '{}')
+
+    Promise.all([
+      api.listVendors().catch(() => []),
+      api.listEvents().catch(() => []),
+    ]).then(([vRows, eRows]) => {
+      // Merge live vendors as vendor applications
+      if (vRows && vRows.length) {
+        const liveVendors = vRows.map(v => {
+          const key = `vendor:${v.id}`
+          const d = decisions[key] || {}
+          return {
+            id: v.id,
+            type: 'vendor',
+            business: v.name,
+            contact: v.name,
+            email: v.contact_email || '—',
+            vendorType: v.category || 'Other',
+            event: v.event_id ? `Event #${v.event_id}` : 'Unassigned',
+            submitted: (v.created_at || '').slice(0, 10),
+            // Prefer backend status; fall back to local override only if backend is missing it.
+            status: v.status || d.status || 'pending',
+            note: v.review_note || d.note || '',
+          }
+        })
+        setVendors(liveVendors)
+      }
+
+      // Merge live events as event approval requests
+      if (eRows && eRows.length) {
+        const liveEvents = eRows.map(e => {
+          const key = `event:${e.id}`
+          const d = decisions[key] || {}
+          return {
+            id: e.id,
+            type: 'event',
+            title: e.name,
+            organizer: '—',
+            date: (e.starts_at || '').slice(0, 10),
+            venue: `Venue #${e.venue_id}`,
+            capacity: e.capacity,
+            price: 0,
+            submitted: (e.created_at || '').slice(0, 10),
+            // Treat 'draft' events as pending approval; published = approved.
+            status: d.status || (e.status === 'published' ? 'approved' : 'pending'),
+            note: d.note || '',
+          }
+        })
+        setEvents(liveEvents)
+      }
+    }).finally(() => setLoading(false))
+  }, [])
+
+  function persistDecision(kind, id, status, note) {
+    const key = `${kind}:${id}`
+    const decisions = JSON.parse(localStorage.getItem('approval_decisions') || '{}')
+    if (status === 'pending') delete decisions[key]
+    else decisions[key] = { status, note }
+    localStorage.setItem('approval_decisions', JSON.stringify(decisions))
+  }
 
   const allItems = [
     ...accounts.map(a => ({ ...a, kind: 'account' })),
@@ -57,7 +124,13 @@ function AdminApprovals() {
     )
     if (kind === 'account') setAccounts(updater)
     if (kind === 'event')   setEvents(updater)
-    if (kind === 'vendor')  setVendors(updater)
+    if (kind === 'vendor') {
+      setVendors(updater)
+      // Persist to backend so the decision survives across browsers/users.
+      api.updateVendor(id, { status: action, review_note: note || null })
+        .catch(err => console.warn('updateVendor failed; using local fallback', err))
+    }
+    persistDecision(kind, id, action, note)
   }
 
   function openNote(id, kind, action) {
@@ -79,7 +152,7 @@ function AdminApprovals() {
 
   return (
     <div>
-      <h2 style={styles.heading}>Approvals</h2>
+      <h2 style={styles.heading}>Approvals {loading && <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 400 }}>· loading…</span>}</h2>
 
       {/* Summary pills */}
       <div style={styles.summaryRow}>

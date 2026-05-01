@@ -1,13 +1,15 @@
 // Author: Nicco Hill
-// PersonnelAssignment.jsx — Security personnel management for admins and security staff.
+// PersonnelAssignment.jsx — Security personnel management for admins.
+// Backed by /api/staff. Each staff row carries a single optional
+// (event_id, zone) assignment plus a free-text duty_status.
 // Features:
-//   • Add new officers to the roster (name, badge, phone, initial status).
-//   • Change any officer's duty status inline (On Duty / On Break / Off Duty).
-//   • Assign officers from the unassigned pool to a specific zone via dropdown.
-//   • Remove officers from a zone — they return to the unassigned pool.
-// State is per-session; assignments persist across tab switches but reset on page reload.
+//   • Add new officers to the roster (POST /api/staff).
+//   • Change duty status inline (PATCH).
+//   • Assign / remove officers from a zone within a chosen event.
+//   • Switch between events to see who's on each roster.
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { api } from '../api'
 
 const STATUS_COLORS = {
   'On Duty':  { bg: '#d1fae5', text: '#065f46' },
@@ -16,148 +18,134 @@ const STATUS_COLORS = {
 }
 
 const STATUSES = ['On Duty', 'On Break', 'Off Duty']
+const DEFAULT_ZONES = ['Main Stage', 'East Entrance', 'West Entrance', 'VIP Area', 'Food Court']
 
-const SEED_PERSONNEL = [
-  { id: 'S-001', name: 'James Carter',  badge: 'B-1042', status: 'On Duty',  phone: '555-0101' },
-  { id: 'S-002', name: 'Maria Lopez',   badge: 'B-1043', status: 'On Duty',  phone: '555-0102' },
-  { id: 'S-003', name: 'Devon Harris',  badge: 'B-1051', status: 'On Break', phone: '555-0103' },
-  { id: 'S-004', name: 'Priya Patel',   badge: 'B-1044', status: 'On Duty',  phone: '555-0104' },
-  { id: 'S-005', name: 'Tom Nguyen',    badge: 'B-1045', status: 'On Duty',  phone: '555-0105' },
-  { id: 'S-006', name: 'Lisa Kim',      badge: 'B-1046', status: 'On Duty',  phone: '555-0106' },
-  { id: 'S-007', name: 'Marcus Webb',   badge: 'B-1047', status: 'On Duty',  phone: '555-0107' },
-  { id: 'S-008', name: 'Sandra Cole',   badge: 'B-1048', status: 'On Break', phone: '555-0108' },
-  { id: 'S-009', name: 'Ray Thompson',  badge: 'B-1049', status: 'On Duty',  phone: '555-0109' },
-  { id: 'S-010', name: 'Angela Brooks', badge: 'B-1052', status: 'On Duty',  phone: '555-0110' },
-  { id: 'S-011', name: 'Chris Evans',   badge: 'B-1053', status: 'On Duty',  phone: '555-0111' },
-  { id: 'S-012', name: 'Nadia Russo',   badge: 'B-1054', status: 'On Break', phone: '555-0112' },
-  { id: 'S-013', name: 'Frank Torres',  badge: 'B-1055', status: 'On Duty',  phone: '555-0113' },
-  { id: 'S-014', name: 'Diana Moore',   badge: 'B-1056', status: 'Off Duty', phone: '555-0114' },
-  { id: 'S-015', name: 'Kevin Grant',   badge: 'B-1057', status: 'Off Duty', phone: '555-0115' },
-]
-
-const SEED_ASSIGNMENTS = {
-  'Spring Music Festival': {
-    zones:      [
-      { name: 'Main Stage',    personnelIds: ['S-001', 'S-002', 'S-003'] },
-      { name: 'East Entrance', personnelIds: ['S-004', 'S-005'] },
-      { name: 'West Entrance', personnelIds: ['S-006'] },
-      { name: 'VIP Area',      personnelIds: ['S-007', 'S-008'] },
-      { name: 'Food Court',    personnelIds: ['S-009'] },
-    ],
-    unassigned: ['S-014', 'S-015'],
-  },
-  'Tech Innovators Conference': {
-    zones:      [
-      { name: 'Main Hall',  personnelIds: ['S-010', 'S-011'] },
-      { name: 'Lobby',      personnelIds: ['S-012'] },
-      { name: 'VIP Lounge', personnelIds: ['S-013'] },
-    ],
-    unassigned: ['S-014', 'S-015'],
-  },
-}
-
-const EMPTY_FORM = { name: '', badge: '', phone: '', status: 'On Duty' }
-
-let nextId = 16
+const EMPTY_FORM = { full_name: '', badge_number: '', phone: '', duty_status: 'On Duty' }
 
 function PersonnelAssignment() {
-  const [personnel, setPersonnel]         = useState(SEED_PERSONNEL)
-  const [assignments, setAssignments]     = useState(SEED_ASSIGNMENTS)
-  const [selectedEvent, setSelectedEvent] = useState('Spring Music Festival')
+  const [staff, setStaff]                 = useState([])
+  const [events, setEvents]               = useState([])
+  const [selectedEventId, setSelectedEventId] = useState(null)
   const [expandedZone, setExpandedZone]   = useState(null)
   const [showAddForm, setShowAddForm]     = useState(false)
   const [form, setForm]                   = useState(EMPTY_FORM)
   const [formErrors, setFormErrors]       = useState({})
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState(null)
 
-  const eventData   = assignments[selectedEvent]
-  const allAssigned = eventData.zones.flatMap(z => z.personnelIds)
-  const onDutyCount = allAssigned
-    .map(id => personnel.find(p => p.id === id))
-    .filter(p => p?.status === 'On Duty').length
+  useEffect(() => {
+    Promise.all([
+      api.listStaff().catch(() => []),
+      api.listEvents().catch(() => []),
+    ]).then(([s, e]) => {
+      setStaff(s || [])
+      setEvents(e || [])
+      if (e && e.length) setSelectedEventId(e[0].id)
+    }).catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
 
-  function getPerson(id) { return personnel.find(p => p.id === id) }
+  const event = events.find(e => e.id === selectedEventId)
 
-  // ── Status change ──────────────────────────────────────────
-  function changeStatus(personId, newStatus) {
-    setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, status: newStatus } : p))
+  const zones = useMemo(() => {
+    const set = new Set(DEFAULT_ZONES)
+    for (const s of staff) {
+      if (s.event_id === selectedEventId && s.zone) set.add(s.zone)
+    }
+    return Array.from(set)
+  }, [staff, selectedEventId])
+
+  const assignedToEvent = staff.filter(s => s.event_id === selectedEventId)
+  const unassigned      = staff.filter(s => s.event_id == null || s.event_id !== selectedEventId)
+  const unassignedHere  = staff.filter(s => s.event_id === selectedEventId && !s.zone)
+  const onDutyCount     = assignedToEvent.filter(s => s.duty_status === 'On Duty').length
+
+  async function patchStaff(id, payload) {
+    setStaff(prev => prev.map(s => s.id === id ? { ...s, ...payload } : s))
+    try {
+      const updated = await api.updateStaff(id, payload)
+      setStaff(prev => prev.map(s => s.id === id ? updated : s))
+    } catch (err) {
+      alert('Update failed: ' + err.message)
+      api.listStaff().then(setStaff).catch(() => {})
+    }
   }
 
-  // ── Zone: remove ───────────────────────────────────────────
-  function removeFromZone(zoneName, personId) {
-    setAssignments(prev => ({
-      ...prev,
-      [selectedEvent]: {
-        zones: prev[selectedEvent].zones.map(z =>
-          z.name === zoneName ? { ...z, personnelIds: z.personnelIds.filter(id => id !== personId) } : z
-        ),
-        unassigned: [...prev[selectedEvent].unassigned, personId],
-      },
-    }))
-  }
+  function changeStatus(id, newStatus) { patchStaff(id, { duty_status: newStatus }) }
+  function assignToEvent(id)            { patchStaff(id, { event_id: selectedEventId, zone: null }) }
+  function removeFromZone(id)           { patchStaff(id, { zone: null }) }
+  function unassignFromEvent(id)        { patchStaff(id, { event_id: null, zone: null }) }
+  function addToZone(zoneName, id)      { if (id) patchStaff(Number(id), { event_id: selectedEventId, zone: zoneName }) }
 
-  // ── Zone: add ──────────────────────────────────────────────
-  function addToZone(zoneName, personId) {
-    if (!personId) return
-    setAssignments(prev => ({
-      ...prev,
-      [selectedEvent]: {
-        zones: prev[selectedEvent].zones.map(z =>
-          z.name === zoneName ? { ...z, personnelIds: [...z.personnelIds, personId] } : z
-        ),
-        unassigned: prev[selectedEvent].unassigned.filter(id => id !== personId),
-      },
-    }))
-  }
-
-  // ── Add new person ─────────────────────────────────────────
   function validateForm() {
     const e = {}
-    if (!form.name.trim())  e.name  = 'Required'
-    if (!form.badge.trim()) e.badge = 'Required'
-    if (!form.phone.trim()) e.phone = 'Required'
+    if (!form.full_name.trim())    e.full_name = 'Required'
+    if (!form.badge_number.trim()) e.badge_number = 'Required'
+    if (!form.phone.trim())        e.phone = 'Required'
     return e
   }
 
-  function handleAddPerson(e) {
+  async function handleAddPerson(e) {
     e.preventDefault()
     const errs = validateForm()
     if (Object.keys(errs).length) { setFormErrors(errs); return }
 
-    const newId = `S-${String(nextId++).padStart(3, '0')}`
-    const newPerson = { id: newId, name: form.name.trim(), badge: form.badge.trim(), phone: form.phone.trim(), status: form.status }
+    const safeName = form.full_name.trim().toLowerCase().replace(/\s+/g, '.')
+    const email = `${safeName}.${form.badge_number.trim().toLowerCase()}@staff.example.com`
 
-    setPersonnel(prev => [...prev, newPerson])
-    // Add to unassigned pool for every event
-    setAssignments(prev => {
-      const updated = {}
-      for (const [ev, data] of Object.entries(prev)) {
-        updated[ev] = { ...data, unassigned: [...data.unassigned, newId] }
-      }
-      return updated
-    })
-    setForm(EMPTY_FORM)
-    setFormErrors({})
-    setShowAddForm(false)
+    try {
+      const created = await api.createStaff({
+        full_name: form.full_name.trim(),
+        email,
+        phone: form.phone.trim(),
+        badge_number: form.badge_number.trim(),
+        duty_status: form.duty_status,
+        role: 'security',
+      })
+      setStaff(prev => [...prev, created])
+      setForm(EMPTY_FORM)
+      setFormErrors({})
+      setShowAddForm(false)
+    } catch (err) {
+      setFormErrors({ form: err.message })
+    }
   }
 
-  const totalCount = allAssigned.length + eventData.unassigned.length
+  if (loading) {
+    return <div style={{ padding: 20, color: '#6b7280' }}>Loading personnel…</div>
+  }
+
+  if (!event) {
+    return (
+      <div>
+        <h2 style={styles.heading}>Personnel Assignment</h2>
+        <p style={{ color: '#6b7280', marginTop: 16 }}>
+          No events exist yet. Create an event first to start assigning personnel.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div>
-      {/* Header */}
       <div style={styles.topRow}>
         <h2 style={styles.heading}>Personnel Assignment</h2>
         <div style={styles.headerRight}>
-          <span style={styles.totalBadge}>{totalCount} total</span>
+          <span style={styles.totalBadge}>{staff.length} total</span>
           <span style={styles.dutyBadge}>{onDutyCount} on duty</span>
-          <span style={styles.unassignedBadge}>{eventData.unassigned.length} unassigned</span>
+          <span style={styles.unassignedBadge}>{unassigned.length} unassigned</span>
           <button style={styles.addPersonBtn} onClick={() => setShowAddForm(s => !s)}>
             {showAddForm ? 'Cancel' : '+ Add Personnel'}
           </button>
         </div>
       </div>
 
-      {/* Add personnel form */}
+      {error && (
+        <div style={{ background: '#fee2e2', color: '#991b1b', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>
+          {error}
+        </div>
+      )}
+
       {showAddForm && (
         <form onSubmit={handleAddPerson} style={styles.addForm}>
           <div style={styles.formTitle}>New Security Personnel</div>
@@ -165,22 +153,22 @@ function PersonnelAssignment() {
             <div style={styles.formField}>
               <label style={styles.formLabel}>Full Name</label>
               <input
-                value={form.name}
-                onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(er => ({ ...er, name: '' })) }}
+                value={form.full_name}
+                onChange={e => { setForm(f => ({ ...f, full_name: e.target.value })); setFormErrors(er => ({ ...er, full_name: '' })) }}
                 placeholder="e.g. Jordan Smith"
-                style={{ ...styles.formInput, ...(formErrors.name ? styles.inputErr : {}) }}
+                style={{ ...styles.formInput, ...(formErrors.full_name ? styles.inputErr : {}) }}
               />
-              {formErrors.name && <span style={styles.errMsg}>{formErrors.name}</span>}
+              {formErrors.full_name && <span style={styles.errMsg}>{formErrors.full_name}</span>}
             </div>
             <div style={styles.formField}>
               <label style={styles.formLabel}>Badge #</label>
               <input
-                value={form.badge}
-                onChange={e => { setForm(f => ({ ...f, badge: e.target.value })); setFormErrors(er => ({ ...er, badge: '' })) }}
+                value={form.badge_number}
+                onChange={e => { setForm(f => ({ ...f, badge_number: e.target.value })); setFormErrors(er => ({ ...er, badge_number: '' })) }}
                 placeholder="e.g. B-1060"
-                style={{ ...styles.formInput, ...(formErrors.badge ? styles.inputErr : {}) }}
+                style={{ ...styles.formInput, ...(formErrors.badge_number ? styles.inputErr : {}) }}
               />
-              {formErrors.badge && <span style={styles.errMsg}>{formErrors.badge}</span>}
+              {formErrors.badge_number && <span style={styles.errMsg}>{formErrors.badge_number}</span>}
             </div>
             <div style={styles.formField}>
               <label style={styles.formLabel}>Phone</label>
@@ -195,51 +183,52 @@ function PersonnelAssignment() {
             <div style={styles.formField}>
               <label style={styles.formLabel}>Initial Status</label>
               <select
-                value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                value={form.duty_status}
+                onChange={e => setForm(f => ({ ...f, duty_status: e.target.value }))}
                 style={styles.formInput}
               >
                 {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
+          {formErrors.form && <div style={styles.errMsg}>{formErrors.form}</div>}
           <button type="submit" style={styles.submitBtn}>Add to Roster</button>
         </form>
       )}
 
-      {/* Event selector */}
       <select
-        value={selectedEvent}
-        onChange={e => { setSelectedEvent(e.target.value); setExpandedZone(null) }}
+        value={selectedEventId}
+        onChange={e => { setSelectedEventId(Number(e.target.value)); setExpandedZone(null) }}
         style={styles.eventSelect}
       >
-        {Object.keys(assignments).map(ev => (
-          <option key={ev} value={ev}>{ev}</option>
+        {events.map(ev => (
+          <option key={ev.id} value={ev.id}>{ev.name}</option>
         ))}
       </select>
 
-      {/* Unassigned pool */}
-      {eventData.unassigned.length > 0 && (
+      {unassigned.length > 0 && (
         <div style={styles.poolCard}>
-          <div style={styles.poolTitle}>Unassigned Personnel — {eventData.unassigned.length}</div>
+          <div style={styles.poolTitle}>Available Personnel — {unassigned.length}</div>
           <div style={styles.poolList}>
-            {eventData.unassigned.map(id => {
-              const p  = getPerson(id)
-              const sc = STATUS_COLORS[p?.status] || STATUS_COLORS['Off Duty']
+            {unassigned.map(p => {
+              const sc = STATUS_COLORS[p.duty_status] || STATUS_COLORS['Off Duty']
               return (
-                <div key={id} style={styles.poolRow}>
-                  <div style={styles.personAvatar}>{p?.name.split(' ').map(n => n[0]).join('')}</div>
+                <div key={p.id} style={styles.poolRow}>
+                  <div style={styles.personAvatar}>{(p.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2)}</div>
                   <div style={styles.poolInfo}>
-                    <div style={styles.personName}>{p?.name}</div>
-                    <div style={styles.personSub}>Badge {p?.badge}</div>
+                    <div style={styles.personName}>{p.full_name}</div>
+                    <div style={styles.personSub}>Badge {p.badge_number || '—'}{p.event_id ? ' · assigned to another event' : ''}</div>
                   </div>
                   <select
-                    value={p?.status}
-                    onChange={e => changeStatus(id, e.target.value)}
+                    value={p.duty_status}
+                    onChange={e => changeStatus(p.id, e.target.value)}
                     style={{ ...styles.statusSelect, background: sc.bg, color: sc.text }}
                   >
                     {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
+                  <button style={styles.activateBtn} onClick={() => assignToEvent(p.id)}>
+                    + This event
+                  </button>
                 </div>
               )
             })}
@@ -247,24 +236,42 @@ function PersonnelAssignment() {
         </div>
       )}
 
-      {/* Zone cards */}
+      {unassignedHere.length > 0 && (
+        <div style={styles.poolCard}>
+          <div style={styles.poolTitle}>On this event · awaiting zone — {unassignedHere.length}</div>
+          <div style={styles.poolList}>
+            {unassignedHere.map(p => (
+              <div key={p.id} style={styles.poolRow}>
+                <div style={styles.personAvatar}>{(p.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2)}</div>
+                <div style={styles.poolInfo}>
+                  <div style={styles.personName}>{p.full_name}</div>
+                  <div style={styles.personSub}>Badge {p.badge_number || '—'}</div>
+                </div>
+                <button style={styles.removeBtn} onClick={() => unassignFromEvent(p.id)}>
+                  Release
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={styles.zoneList}>
-        {eventData.zones.map(zone => {
-          const isOpen    = expandedZone === zone.name
-          const zonePpl   = zone.personnelIds.map(id => getPerson(id)).filter(Boolean)
-          const dutyCount = zonePpl.filter(p => p.status === 'On Duty').length
-          const available = eventData.unassigned.map(id => getPerson(id)).filter(Boolean)
+        {zones.map(zoneName => {
+          const isOpen    = expandedZone === zoneName
+          const zonePpl   = assignedToEvent.filter(p => p.zone === zoneName)
+          const dutyCount = zonePpl.filter(p => p.duty_status === 'On Duty').length
 
           return (
-            <div key={zone.name} style={styles.zoneCard}>
-              <button style={styles.zoneHeader} onClick={() => setExpandedZone(isOpen ? null : zone.name)}>
+            <div key={zoneName} style={styles.zoneCard}>
+              <button style={styles.zoneHeader} onClick={() => setExpandedZone(isOpen ? null : zoneName)}>
                 <div>
-                  <div style={styles.zoneName}>{zone.name}</div>
+                  <div style={styles.zoneName}>{zoneName}</div>
                   <div style={styles.zoneMeta}>{zonePpl.length} assigned · {dutyCount} on duty</div>
                 </div>
                 <div style={styles.zoneRight}>
                   {zonePpl.map(p => (
-                    <div key={p.id} style={{ ...styles.dot, background: STATUS_COLORS[p.status]?.text || '#9ca3af' }} title={`${p.name} — ${p.status}`} />
+                    <div key={p.id} style={{ ...styles.dot, background: STATUS_COLORS[p.duty_status]?.text || '#9ca3af' }} title={`${p.full_name} — ${p.duty_status}`} />
                   ))}
                   {zonePpl.length === 0 && <span style={styles.emptyDot}>Empty</span>}
                   <span style={styles.chevron}>{isOpen ? '▲' : '▼'}</span>
@@ -276,25 +283,25 @@ function PersonnelAssignment() {
                   {zonePpl.length === 0 && <div style={styles.emptyZone}>No one assigned to this zone.</div>}
 
                   {zonePpl.map(p => {
-                    const sc = STATUS_COLORS[p.status] || STATUS_COLORS['Off Duty']
+                    const sc = STATUS_COLORS[p.duty_status] || STATUS_COLORS['Off Duty']
                     return (
                       <div key={p.id} style={styles.personRow}>
                         <div style={styles.personLeft}>
-                          <div style={styles.personAvatar}>{p.name.split(' ').map(n => n[0]).join('')}</div>
+                          <div style={styles.personAvatar}>{(p.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2)}</div>
                           <div>
-                            <div style={styles.personName}>{p.name}</div>
-                            <div style={styles.personSub}>Badge {p.badge} · {p.phone}</div>
+                            <div style={styles.personName}>{p.full_name}</div>
+                            <div style={styles.personSub}>Badge {p.badge_number || '—'} · {p.phone || '—'}</div>
                           </div>
                         </div>
                         <div style={styles.personRight}>
                           <select
-                            value={p.status}
+                            value={p.duty_status}
                             onChange={e => changeStatus(p.id, e.target.value)}
                             style={{ ...styles.statusSelect, background: sc.bg, color: sc.text }}
                           >
                             {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
-                          <button style={styles.removeBtn} onClick={() => removeFromZone(zone.name, p.id)}>
+                          <button style={styles.removeBtn} onClick={() => removeFromZone(p.id)}>
                             Remove
                           </button>
                         </div>
@@ -306,14 +313,14 @@ function PersonnelAssignment() {
                     <select
                       style={styles.addSelect}
                       defaultValue=""
-                      key={zone.name + eventData.unassigned.join()}
-                      onChange={e => { addToZone(zone.name, e.target.value); e.target.value = '' }}
+                      key={zoneName + unassignedHere.length}
+                      onChange={e => { addToZone(zoneName, e.target.value); e.target.value = '' }}
                     >
                       <option value="" disabled>
-                        {available.length ? '+ Assign personnel to this zone…' : 'No unassigned personnel available'}
+                        {unassignedHere.length ? '+ Assign personnel to this zone…' : 'No unzoned personnel on this event'}
                       </option>
-                      {available.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} — {p.badge} ({p.status})</option>
+                      {unassignedHere.map(p => (
+                        <option key={p.id} value={p.id}>{p.full_name} — {p.badge_number || 'no badge'} ({p.duty_status})</option>
                       ))}
                     </select>
                   </div>
@@ -355,6 +362,7 @@ const styles = {
   poolInfo:  { flex: 1 },
 
   statusSelect: { border: 'none', borderRadius: '20px', padding: '4px 10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', outline: 'none' },
+  activateBtn:  { background: 'none', border: '1px solid #6ee7b7', color: '#065f46', padding: '5px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', whiteSpace: 'nowrap' },
 
   zoneList:  { display: 'flex', flexDirection: 'column', gap: '10px' },
   zoneCard:  { background: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' },

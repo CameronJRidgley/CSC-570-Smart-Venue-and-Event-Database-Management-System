@@ -1,29 +1,47 @@
 // Author: Nicco Hill
 // AdminReports.jsx — Platform-wide analytics overview for admins.
-// Displays four summary stat cards (users, events, tickets sold, revenue)
-// and a ranked table of top events by revenue with a mini capacity progress bar per row.
+// Pulls live aggregates from /api/admin/stats and ranked events from
+// /api/admin/top-events. All numbers reflect the actual SQL data.
 
-const stats = [
-  { label: 'Total Users',    value: '1,234', delta: '+48 this month',  color: '#004080', bg: '#dbeafe' },
-  { label: 'Total Events',   value: '48',    delta: '+5 this month',   color: '#5b21b6', bg: '#ede9fe' },
-  { label: 'Tickets Sold',   value: '8,920', delta: '+620 this month', color: '#065f46', bg: '#d1fae5' },
-  { label: 'Total Revenue',  value: '$312,450', delta: '+$18,200 this month', color: '#92400e', bg: '#fef3c7' },
-]
+import { useState, useEffect } from 'react'
+import { api } from '../api'
 
-const topEvents = [
-  { name: 'Spring Music Festival', organizer: 'organizer@example.com', date: '2025-05-10', sold: 342, capacity: 500, revenue: '$15,390' },
-  { name: 'Tech Summit 2025',      organizer: 'carol.jones@mail.com',  date: '2025-06-20', sold: 198, capacity: 200, revenue: '$29,700' },
-  { name: 'Food & Wine Expo',      organizer: 'organizer@example.com', date: '2025-07-15', sold: 89,  capacity: 300, revenue: '$3,115'  },
-  { name: 'Summer Festival',       organizer: 'carol.jones@mail.com',  date: '2025-08-01', sold: 210, capacity: 600, revenue: '$6,300'  },
-]
+const money = (n) => '$' + Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 
 function AdminReports() {
+  const [stats, setStats]       = useState(null)
+  const [topEvents, setTopEvents] = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
+
+  useEffect(() => {
+    Promise.all([
+      api.adminStats().catch(err => { throw err }),
+      api.adminTopEvents(10).catch(() => []),
+    ]).then(([s, t]) => {
+      setStats(s)
+      setTopEvents(t || [])
+    }).catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div style={{ padding: 20, color: '#6b7280' }}>Loading reports…</div>
+  if (error)   return <div style={{ padding: 20, color: '#991b1b' }}>{error}</div>
+  if (!stats)  return null
+
+  const cards = [
+    { label: 'Total Users',   value: stats.total_users.toLocaleString(),     delta: `+${stats.new_users_30d} this month`,    color: '#004080', bg: '#dbeafe' },
+    { label: 'Total Events',  value: stats.total_events.toLocaleString(),    delta: `+${stats.new_events_30d} this month`,   color: '#5b21b6', bg: '#ede9fe' },
+    { label: 'Tickets Sold',  value: stats.tickets_sold.toLocaleString(),    delta: `+${stats.tickets_sold_30d} this month`, color: '#065f46', bg: '#d1fae5' },
+    { label: 'Total Revenue', value: money(stats.total_revenue),              delta: `+${money(stats.revenue_30d)} this month`,color: '#92400e', bg: '#fef3c7' },
+  ]
+
   return (
     <div>
       <h2 style={styles.heading}>Reports & Overview</h2>
 
       <div style={styles.statsGrid}>
-        {stats.map(s => (
+        {cards.map(s => (
           <div key={s.label} style={{ ...styles.statCard, borderTop: `4px solid ${s.color}` }}>
             <div style={styles.statLabel}>{s.label}</div>
             <div style={{ ...styles.statValue, color: s.color }}>{s.value}</div>
@@ -38,20 +56,23 @@ function AdminReports() {
           <thead>
             <tr style={styles.thead}>
               <th style={styles.th}>Event</th>
-              <th style={styles.th}>Organizer</th>
               <th style={styles.th}>Date</th>
               <th style={styles.th}>Sold / Cap</th>
               <th style={styles.th}>Revenue</th>
             </tr>
           </thead>
           <tbody>
-            {topEvents.map((ev, i) => {
-              const pct = Math.round((ev.sold / ev.capacity) * 100)
+            {topEvents.length === 0 && (
+              <tr><td style={{ ...styles.td, color: '#9ca3af' }} colSpan={4}>No event data yet.</td></tr>
+            )}
+            {topEvents.map(ev => {
+              const cap = ev.capacity || 1
+              const pct = Math.min(100, Math.round((ev.sold / cap) * 100))
+              const date = (ev.starts_at || '').slice(0, 10)
               return (
-                <tr key={i} style={styles.tr}>
+                <tr key={ev.event_id} style={styles.tr}>
                   <td style={{ ...styles.td, fontWeight: '600' }}>{ev.name}</td>
-                  <td style={{ ...styles.td, color: '#6b7280', fontSize: '13px' }}>{ev.organizer}</td>
-                  <td style={{ ...styles.td, color: '#6b7280', fontSize: '13px' }}>{ev.date}</td>
+                  <td style={{ ...styles.td, color: '#6b7280', fontSize: '13px' }}>{date}</td>
                   <td style={styles.td}>
                     <div style={styles.barRow}>
                       <span style={styles.barText}>{ev.sold}/{ev.capacity}</span>
@@ -60,7 +81,7 @@ function AdminReports() {
                       </div>
                     </div>
                   </td>
-                  <td style={{ ...styles.td, fontWeight: '700', color: '#065f46' }}>{ev.revenue}</td>
+                  <td style={{ ...styles.td, fontWeight: '700', color: '#065f46' }}>{money(ev.revenue)}</td>
                 </tr>
               )
             })}

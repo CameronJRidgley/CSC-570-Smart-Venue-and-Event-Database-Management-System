@@ -21,6 +21,10 @@ class Staff(SQLModel, table=True):
     email: str = Field(max_length=320, unique=True, index=True)
     phone: Optional[str] = Field(default=None, max_length=30)
     role: StaffRole = Field(default=StaffRole.USHER, index=True)
+    badge_number: Optional[str] = Field(default=None, max_length=50, index=True)
+    duty_status: str = Field(default="On Duty", max_length=20)
+    event_id: Optional[int] = Field(default=None, foreign_key="events.id", index=True)
+    zone: Optional[str] = Field(default=None, max_length=100)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

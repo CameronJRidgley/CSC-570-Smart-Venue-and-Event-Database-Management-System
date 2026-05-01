@@ -75,6 +75,7 @@ export const api = {
   listVendors:      ()              => request('/api/vendors'),
   getVendor:        (id)            => request(`/api/vendors/${id}`),
   createVendor:     (payload)       => request('/api/vendors', { method: 'POST', body: payload }),
+  updateVendor:     (id, payload)   => request(`/api/vendors/${id}`, { method: 'PATCH', body: payload }),
   assignVendor:     (id, payload)   => request(`/api/vendors/${id}/assignments`, { method: 'POST', body: payload }),
 
   // ------- Vendor Sales -------
@@ -96,6 +97,18 @@ export const api = {
   reportRevenue:      (id) => request(`/api/reports/revenue/${id}`),
   reportSafety:       (id) => request(`/api/reports/safety/${id}`),
   reportPostEvent:    (id) => request(`/api/reports/post-event/${id}`),
+
+  // ------- Admin -------
+  listAdminUsers: (params = {}) => request(`/api/admin/users${qs(params)}`),
+  updateAdminUser:(id, payload) => request(`/api/admin/users/${id}`, { method: 'PATCH', body: payload }),
+  adminStats:     ()            => request('/api/admin/stats'),
+  adminTopEvents: (limit = 10)  => request(`/api/admin/top-events?limit=${limit}`),
+
+  // ------- Staff -------
+  listStaff:    (params = {})    => request(`/api/staff${qs(params)}`),
+  createStaff:  (payload)        => request('/api/staff', { method: 'POST', body: payload }),
+  updateStaff:  (id, payload)    => request(`/api/staff/${id}`, { method: 'PATCH', body: payload }),
+  deleteStaff:  (id)             => request(`/api/staff/${id}`, { method: 'DELETE' }),
 }
 
 function qs(params) {

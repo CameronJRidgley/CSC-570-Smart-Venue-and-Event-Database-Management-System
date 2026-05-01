@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models.enums import PaymentMethod
+from app.models.enums import PaymentMethod, VendorStatus
 
 
 class VendorBase(BaseModel):
@@ -24,11 +24,15 @@ class VendorUpdate(BaseModel):
     contact_email: Optional[EmailStr] = None
     booth_number: Optional[str] = None
     event_id: Optional[int] = None
+    status: Optional[VendorStatus] = None
+    review_note: Optional[str] = None
 
 
 class VendorRead(VendorBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    status: VendorStatus = VendorStatus.PENDING
+    review_note: Optional[str] = None
     created_at: datetime
 
 
