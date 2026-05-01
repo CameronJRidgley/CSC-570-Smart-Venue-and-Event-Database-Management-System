@@ -56,7 +56,12 @@ function RegisterPage() {
     return e
   }
 
-  const role = accountType === 'staff' ? staffRole?.id : accountType
+  // Map UI role → backend UserRole enum value.
+  // Backend valid roles: admin | organizer | staff | attendee | vendor
+  // 'security' (UI staff sub-role) collapses to 'staff'.
+  const role = accountType === 'staff'
+    ? (staffRole?.id === 'security' ? 'staff' : staffRole?.id)
+    : accountType
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -65,23 +70,25 @@ function RegisterPage() {
     setLoading(true)
 
     try {
-      const data = await api.register({
-        first_name: form.firstName,
-        last_name:  form.lastName,
-        email:      form.email,
-        password:   form.password,
+      // 1. Create the user. Backend returns a UserRead — no token.
+      await api.register({
+        email:     form.email,
+        password:  form.password,
+        full_name: `${form.firstName} ${form.lastName}`.trim(),
         role,
-        business:   form.business || undefined,
-        pending:    accountType === 'staff',
       })
 
       if (accountType === 'staff') {
+        // Staff accounts hold for admin approval — don't auto-login.
         setSubmitted(true)
-      } else {
-        localStorage.setItem('token', data.access_token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        navigate('/dashboard')
+        return
       }
+
+      // 2. Immediately log them in so the dashboard has a valid token+user.
+      const session = await api.login(form.email, form.password)
+      localStorage.setItem('token', session.access_token)
+      localStorage.setItem('user',  JSON.stringify(session.user))
+      navigate('/dashboard')
     } catch (err) {
       // If backend reachable but rejected, show error; otherwise fall back to mock.
       if (err?.status && err.status !== 0) {
