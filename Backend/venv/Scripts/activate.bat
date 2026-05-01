@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set "VIRTUAL_ENV=C:\Users\kyren\Downloads\CSC-570-Smart-Venue-and-Event-Database-Management-System-main\CSC-570-Smart-Venue-and-Event-Database-Management-System-main\Backend\venv"
+set "VIRTUAL_ENV=C:\Users\ridgl\Desktop\projects\CSC-570-Smart-Venue-and-Event-Database-Management-System\Backend\venv"
 
 if not defined PROMPT set PROMPT=$P$G
 

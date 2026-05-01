@@ -7,10 +7,10 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-# echo=False in prod; flip to True temporarily for SQL debugging.
+# echo controlled by settings.db_echo; set DB_ECHO=true in env to see SQL.
 engine = create_engine(
     settings.database_url,
-    echo=False,
+    echo=settings.db_echo,
     pool_pre_ping=True,
 )
 

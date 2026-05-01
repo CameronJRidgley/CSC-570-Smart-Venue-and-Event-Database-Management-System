@@ -8,7 +8,7 @@ Powers the **Attendee Portal**:
 
 Purchase is atomic and race-safe: `SELECT ... FOR UPDATE` serializes
 writers for a given event and a DB uniqueness constraint on
-(event_id, seating_section_id, seat_number) is the final backstop
+(event_id, seat_id, seat_number) is the final backstop
 against double-booking a seat.
 """
 from typing import List

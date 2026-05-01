@@ -1,9 +1,8 @@
-"""Venue and SeatingSection tables.
+"""Venue and Seat tables.
 
-A Venue is a physical location. Each Venue has many SeatingSections
-(e.g. 'Floor', 'Balcony', 'VIP Box') that define capacity and price tier.
-Tickets are issued against a (event, seating_section) pair so capacity
-can be enforced per section.
+A Venue is a physical location. Each Venue has many Seats (e.g. 'Floor',
+'Balcony', 'VIP Box') that define capacity and price tier. Tickets are
+issued against an (event, seat) pair so capacity can be enforced per seat.
 """
 from datetime import datetime
 from typing import Optional
@@ -24,8 +23,8 @@ class Venue(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class SeatingSection(SQLModel, table=True):
-    __tablename__ = "seating_sections"
+class Seat(SQLModel, table=True):
+    __tablename__ = "seats"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     venue_id: int = Field(foreign_key="venues.id", index=True)

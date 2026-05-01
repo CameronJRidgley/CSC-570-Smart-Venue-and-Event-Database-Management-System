@@ -9,7 +9,7 @@ from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
-from app.models.enums import PaymentMethod
+from app.models.enums import PaymentMethod, VendorStatus
 
 
 class Vendor(SQLModel, table=True):
@@ -21,6 +21,8 @@ class Vendor(SQLModel, table=True):
     contact_email: Optional[str] = Field(default=None, max_length=320)
     booth_number: Optional[str] = Field(default=None, max_length=50)
     event_id: Optional[int] = Field(default=None, foreign_key="events.id", index=True)
+    status: VendorStatus = Field(default=VendorStatus.PENDING, index=True)
+    review_note: Optional[str] = Field(default=None, max_length=1000)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

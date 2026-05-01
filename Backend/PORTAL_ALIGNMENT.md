@@ -48,8 +48,8 @@ The buyer-facing experience: browse → pick seat → pay → receive QR.
 |---|---|---|---|
 | **Event Search** — list / filter | `GET /api/events?skip=&limit=` | SQL | Returns `EventRead` list. Filtering by type/date/venue is a frontend-side concern right now (we return all events); say the word and we'll add query params. |
 | **Event Details** | `GET /api/events/{event_id}` | SQL | Full event record with venue id. |
-| **Seat Selection** — sections | `GET /api/events/{event_id}/seats` | SQL | Returns all `SeatingSection` rows for the event's venue (name, tier, capacity, base_price). |
-| **Seat Selection** — live availability | `GET /api/events/{event_id}/availability` | SQL | Remaining seats per section (already-purchased tickets subtracted). Call right before checkout. |
+| **Seat Selection** — seats | `GET /api/events/{event_id}/seats` | SQL | Returns all `Seat` rows for the event's venue (name, tier, capacity, base_price). |
+| **Seat Selection** — live availability | `GET /api/events/{event_id}/availability` | SQL | Remaining seats per seat block (already-purchased tickets subtracted). Call right before checkout. |
 | **Checkout / Payment** | `POST /api/tickets/purchase` | SQL (tickets, payments, attendees) | Atomic, race-safe. See payload below. |
 | **Purchase Confirmation / Ticket Wallet** | `GET /api/tickets/{ticket_id}` | SQL | Returns `TicketRead` with `qr_code` token. |
 | **My Tickets** | `GET /api/users/{user_id}/tickets` | SQL | All tickets for an attendee. |
@@ -63,7 +63,7 @@ Content-Type: application/json
 
 {
   "event_id": 1,
-  "seating_section_id": 2,
+  "seat_id": 2,
   "seat_number": "A12",
   "attendee": {
     "full_name": "Alice Nguyen",
@@ -80,7 +80,7 @@ Content-Type: application/json
   "ticket": {
     "id": 47,
     "event_id": 1,
-    "seating_section_id": 2,
+    "seat_id": 2,
     "attendee_id": 12,
     "seat_number": "A12",
     "qr_code": "TKT-7fa9...",
@@ -101,7 +101,7 @@ Content-Type: application/json
 ### Data flow
 
 ```
-Attendee Portal  ──HTTP──▶  backend/api  ──SQL──▶  events, seating_sections,
+Attendee Portal  ──HTTP──▶  backend/api  ──SQL──▶  events, seats,
                                                     attendees, payments, tickets
 ```
 

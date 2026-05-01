@@ -1,32 +1,35 @@
 // Author: Nicco Hill
 // AdminUsers.jsx — User management panel for admins.
-// Lists all registered users with their role, status, and join date.
-// Supports live search by email and filtering by role.
-// Admins can suspend or reactivate any account with a single click.
+// Lists all registered users from /api/admin/users with their role,
+// status, and join date. Supports live search by email and filtering
+// by role. Admins can suspend/reactivate any account; the change is
+// PATCHed to the backend so it persists.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../api'
 
 const ROLE_COLORS = {
   attendee:  { bg: '#dbeafe', text: '#1e40af' },
   organizer: { bg: '#ede9fe', text: '#5b21b6' },
   staff:     { bg: '#d1fae5', text: '#065f46' },
   admin:     { bg: '#fee2e2', text: '#991b1b' },
+  vendor:    { bg: '#ffedd5', text: '#9a3412' },
 }
 
-const INITIAL_USERS = [
-  { id: 1, email: 'attendee@example.com',  role: 'attendee',  status: 'Active',   joined: '2025-01-12' },
-  { id: 2, email: 'organizer@example.com', role: 'organizer', status: 'Active',   joined: '2025-01-08' },
-  { id: 3, email: 'staff@example.com',     role: 'staff',     status: 'Active',   joined: '2025-02-01' },
-  { id: 4, email: 'admin@example.com',     role: 'admin',     status: 'Active',   joined: '2024-12-15' },
-  { id: 5, email: 'jane.doe@gmail.com',    role: 'attendee',  status: 'Active',   joined: '2025-03-22' },
-  { id: 6, email: 'bob.smith@yahoo.com',   role: 'attendee',  status: 'Suspended', joined: '2025-02-14' },
-  { id: 7, email: 'carol.jones@mail.com',  role: 'organizer', status: 'Active',   joined: '2025-01-30' },
-]
-
 function AdminUsers() {
-  const [users, setUsers] = useState(INITIAL_USERS)
-  const [search, setSearch] = useState('')
+  const [users, setUsers]         = useState([])
+  const [search, setSearch]       = useState('')
   const [filterRole, setFilterRole] = useState('all')
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+    api.listAdminUsers()
+      .then(setUsers)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
 
   const visible = users.filter(u => {
     const matchSearch = u.email.toLowerCase().includes(search.toLowerCase())
@@ -34,19 +37,33 @@ function AdminUsers() {
     return matchSearch && matchRole
   })
 
-  function toggleStatus(id) {
-    setUsers(us => us.map(u => u.id === id
-      ? { ...u, status: u.status === 'Active' ? 'Suspended' : 'Active' }
-      : u
-    ))
+  async function toggleStatus(id) {
+    const target = users.find(u => u.id === id)
+    if (!target) return
+    const next = !target.is_active
+    // optimistic
+    setUsers(us => us.map(u => u.id === id ? { ...u, is_active: next } : u))
+    try {
+      await api.updateAdminUser(id, { is_active: next })
+    } catch (err) {
+      // rollback
+      setUsers(us => us.map(u => u.id === id ? { ...u, is_active: !next } : u))
+      alert('Failed to update user: ' + err.message)
+    }
   }
 
   return (
     <div>
       <div style={styles.topRow}>
-        <h2 style={styles.heading}>Manage Users</h2>
+        <h2 style={styles.heading}>Manage Users {loading && <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 400 }}>· loading…</span>}</h2>
         <span style={styles.count}>{users.length} total users</span>
       </div>
+
+      {error && (
+        <div style={{ background: '#fee2e2', color: '#991b1b', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>
+          {error}
+        </div>
+      )}
 
       <div style={styles.filters}>
         <input
@@ -60,6 +77,7 @@ function AdminUsers() {
           <option value="attendee">Attendee</option>
           <option value="organizer">Organizer</option>
           <option value="staff">Staff</option>
+          <option value="vendor">Vendor</option>
           <option value="admin">Admin</option>
         </select>
       </div>
@@ -77,7 +95,8 @@ function AdminUsers() {
           </thead>
           <tbody>
             {visible.map(u => {
-              const rc = ROLE_COLORS[u.role]
+              const rc = ROLE_COLORS[u.role] || { bg: '#f3f4f6', text: '#374151' }
+              const isActive = u.is_active !== false
               return (
                 <tr key={u.id} style={styles.tr}>
                   <td style={styles.td}>{u.email}</td>
@@ -87,17 +106,17 @@ function AdminUsers() {
                     </span>
                   </td>
                   <td style={styles.td}>
-                    <span style={{ ...styles.badge, ...(u.status === 'Active' ? styles.activeStatus : styles.suspendedStatus) }}>
-                      {u.status}
+                    <span style={{ ...styles.badge, ...(isActive ? styles.activeStatus : styles.suspendedStatus) }}>
+                      {isActive ? 'Active' : 'Suspended'}
                     </span>
                   </td>
-                  <td style={{ ...styles.td, color: '#6b7280', fontSize: '13px' }}>{u.joined}</td>
+                  <td style={{ ...styles.td, color: '#6b7280', fontSize: '13px' }}>{(u.created_at || '').slice(0, 10)}</td>
                   <td style={styles.td}>
                     <button
-                      style={u.status === 'Active' ? styles.suspendBtn : styles.activateBtn}
+                      style={isActive ? styles.suspendBtn : styles.activateBtn}
                       onClick={() => toggleStatus(u.id)}
                     >
-                      {u.status === 'Active' ? 'Suspend' : 'Activate'}
+                      {isActive ? 'Suspend' : 'Activate'}
                     </button>
                   </td>
                 </tr>
@@ -105,7 +124,7 @@ function AdminUsers() {
             })}
           </tbody>
         </table>
-        {visible.length === 0 && <div style={styles.empty}>No users match your filters.</div>}
+        {!loading && visible.length === 0 && <div style={styles.empty}>No users match your filters.</div>}
       </div>
     </div>
   )

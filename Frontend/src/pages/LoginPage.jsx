@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../api'
 
 const STAFF_ROLES = [
   { id: 'admin',     label: 'Admin',     desc: 'Full system access',        color: '#dc2626', bg: '#fee2e2', email: 'admin@example.com',     password: 'admin123!' },
@@ -59,28 +60,27 @@ function LoginPage() {
                : staffRole?.id
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data?.error?.message || 'Invalid password.'); return }
+      const data = await api.login(email, password)
       localStorage.setItem('token', data.access_token)
       localStorage.setItem('user', JSON.stringify(data.user))
       navigate('/dashboard')
-    } catch {
-      let valid = false
-      if (step === 'attendee') valid = password === MOCK['attendee@example.com'].password
-      if (step === 'vendor')   valid = password === MOCK['vendor@example.com'].password
-      if (step === 'staff-login') valid = password === staffRole?.password
-
-      if (valid) {
-        localStorage.setItem('token', 'mock-token')
-        localStorage.setItem('user', JSON.stringify({ email, role }))
-        navigate('/dashboard')
+    } catch (err) {
+      // If backend reachable but rejected, surface its message; otherwise fall back to mock.
+      if (err?.status && err.status !== 0) {
+        setError(err.message || 'Invalid password.')
       } else {
-        setError('Incorrect password.')
+        let valid = false
+        if (step === 'attendee') valid = password === MOCK['attendee@example.com'].password
+        if (step === 'vendor')   valid = password === MOCK['vendor@example.com'].password
+        if (step === 'staff-login') valid = password === staffRole?.password
+
+        if (valid) {
+          localStorage.setItem('token', 'mock-token')
+          localStorage.setItem('user', JSON.stringify({ email, role }))
+          navigate('/dashboard')
+        } else {
+          setError('Incorrect password.')
+        }
       }
     } finally {
       setLoading(false)

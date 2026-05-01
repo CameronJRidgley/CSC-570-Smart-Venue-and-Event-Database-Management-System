@@ -16,7 +16,7 @@ if config.config_file_name is not None:
 
 # Pull the DB URL from our Settings (ignoring what's in alembic.ini).
 _settings = get_settings()
-config.set_main_option("sqlalchemy.url", _settings.database_url)
+config.set_main_option("sqlalchemy.url", _settings.database_url.replace("%", "%%"))
 
 target_metadata = SQLModel.metadata
 

@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../api'
 
 const STAFF_ROLES = [
   { id: 'admin',     label: 'Admin',     desc: 'Full system access',        color: '#dc2626', bg: '#fee2e2' },
@@ -55,7 +56,12 @@ function RegisterPage() {
     return e
   }
 
-  const role = accountType === 'staff' ? staffRole?.id : accountType
+  // Map UI role → backend UserRole enum value.
+  // Backend valid roles: admin | organizer | staff | attendee | vendor
+  // 'security' (UI staff sub-role) collapses to 'staff'.
+  const role = accountType === 'staff'
+    ? (staffRole?.id === 'security' ? 'staff' : staffRole?.id)
+    : accountType
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -64,30 +70,32 @@ function RegisterPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: form.firstName,
-          last_name:  form.lastName,
-          email:      form.email,
-          password:   form.password,
-          role,
-          business:   form.business || undefined,
-          pending:    accountType === 'staff',
-        }),
+      // 1. Create the user. Backend returns a UserRead — no token.
+      await api.register({
+        email:     form.email,
+        password:  form.password,
+        full_name: `${form.firstName} ${form.lastName}`.trim(),
+        role,
       })
-      const data = await res.json()
-      if (!res.ok) { setErrors({ email: data?.error?.message || 'Registration failed.' }); return }
 
       if (accountType === 'staff') {
+        // Staff accounts hold for admin approval — don't auto-login.
         setSubmitted(true)
-      } else {
-        localStorage.setItem('token', data.access_token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        navigate('/dashboard')
+        return
       }
-    } catch {
+
+      // 2. Immediately log them in so the dashboard has a valid token+user.
+      const session = await api.login(form.email, form.password)
+      localStorage.setItem('token', session.access_token)
+      localStorage.setItem('user',  JSON.stringify(session.user))
+      navigate('/dashboard')
+    } catch (err) {
+      // If backend reachable but rejected, show error; otherwise fall back to mock.
+      if (err?.status && err.status !== 0) {
+        setErrors({ email: err.message || 'Registration failed.' })
+        setLoading(false)
+        return
+      }
       // Backend offline — mock
       if (accountType === 'staff') {
         setSubmitted(true)

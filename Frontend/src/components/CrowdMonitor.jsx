@@ -1,59 +1,12 @@
 // Author: Nicco Hill
 // CrowdMonitor.jsx — Real-time crowd congestion viewer for security staff and admins.
-// Select an event to see overall attendance plus a per-zone breakdown.
+// Pulls events from /api/events and per-zone snapshots from /api/crowd/zones/{event_id}.
 // Congestion levels: Low (<50%) · Moderate (51–75%) · High (76–89%) · Critical (≥90%).
 // A red alert banner appears automatically when any zone hits Critical.
 // The "last updated" timestamp refreshes every 30 seconds.
 
 import { useState, useEffect } from 'react'
-
-const EVENTS = [
-  {
-    id: 1,
-    name: 'Spring Music Festival',
-    date: 'April 15, 2026',
-    totalCapacity: 5000,
-    currentAttendance: 3800,
-    zones: [
-      { name: 'Main Stage',     capacity: 2000, current: 1850 },
-      { name: 'East Entrance',  capacity: 500,  current: 220  },
-      { name: 'West Entrance',  capacity: 500,  current: 180  },
-      { name: 'Food Court',     capacity: 800,  current: 560  },
-      { name: 'VIP Area',       capacity: 400,  current: 390  },
-      { name: 'Parking Lot A',  capacity: 800,  current: 600  },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Tech Innovators Conference',
-    date: 'May 3, 2026',
-    totalCapacity: 800,
-    currentAttendance: 460,
-    zones: [
-      { name: 'Main Hall',      capacity: 400,  current: 310  },
-      { name: 'Lobby',          capacity: 150,  current: 80   },
-      { name: 'Workshop Room A',capacity: 100,  current: 42   },
-      { name: 'Workshop Room B',capacity: 100,  current: 28   },
-      { name: 'VIP Lounge',     capacity: 50,   current: 47   },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Summer Music Festival',
-    date: 'June 7, 2026',
-    totalCapacity: 10000,
-    currentAttendance: 5500,
-    zones: [
-      { name: 'Main Stage',     capacity: 4000, current: 3100 },
-      { name: 'Side Stage',     capacity: 1500, current: 800  },
-      { name: 'North Entrance', capacity: 800,  current: 300  },
-      { name: 'South Entrance', capacity: 800,  current: 250  },
-      { name: 'Food Village',   capacity: 1500, current: 720  },
-      { name: 'VIP Terrace',    capacity: 800,  current: 780  },
-      { name: 'Camping Area',   capacity: 600,  current: 350  },
-    ],
-  },
-]
+import { api } from '../api'
 
 function congestionLevel(pct) {
   if (pct >= 90) return { label: 'Critical', bg: '#fee2e2', text: '#dc2626', bar: '#dc2626' }
@@ -63,18 +16,76 @@ function congestionLevel(pct) {
 }
 
 function CrowdMonitor() {
-  const [selectedId, setSelectedId] = useState(EVENTS[0].id)
+  const [eventList, setEventList]     = useState([])
+  const [selectedId, setSelectedId]   = useState(null)
   const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [loadingEvents, setLoadingEvents] = useState(true)
+  const [loadingZones, setLoadingZones]   = useState(false)
+
+  // Load real events on mount
+  useEffect(() => {
+    api.listEvents().then(rows => {
+      const enriched = (rows || []).map(e => ({
+        id: e.id,
+        name: e.name,
+        date: new Date(e.starts_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+        totalCapacity: e.capacity || 0,
+        currentAttendance: 0,
+        zones: [],
+      }))
+      setEventList(enriched)
+      if (enriched.length) setSelectedId(enriched[0].id)
+    }).catch(() => {})
+      .finally(() => setLoadingEvents(false))
+  }, [])
+
+  // When the user selects an event, fetch the zone snapshot
+  useEffect(() => {
+    if (selectedId == null) return
+    let cancelled = false
+    setLoadingZones(true)
+    api.getCrowdZones(selectedId).then(snapshot => {
+      if (cancelled) return
+      const zones = (snapshot?.zones || []).map(z => {
+        const cur = z.latest?.people_count ?? 0
+        // No per-zone capacity stored — estimate from current load.
+        const cap = Math.max(Math.ceil(cur * 1.25), 100)
+        return { name: z.zone, capacity: cap, current: cur }
+      })
+      const total = zones.reduce((s, z) => s + z.current, 0)
+      setEventList(list => list.map(e => e.id === selectedId
+        ? { ...e, zones, currentAttendance: total }
+        : e))
+      setLastUpdated(new Date())
+    }).catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingZones(false) })
+    return () => { cancelled = true }
+  }, [selectedId])
 
   useEffect(() => {
     const t = setInterval(() => setLastUpdated(new Date()), 30000)
     return () => clearInterval(t)
   }, [])
 
-  const event    = EVENTS.find(e => e.id === selectedId)
-  const overallPct = Math.round((event.currentAttendance / event.totalCapacity) * 100)
+  if (loadingEvents) {
+    return <div style={{ padding: 20, color: '#6b7280' }}>Loading events…</div>
+  }
+
+  if (eventList.length === 0) {
+    return (
+      <div>
+        <h2 style={styles.heading}>Crowd Monitor</h2>
+        <p style={{ color: '#6b7280', marginTop: 16 }}>
+          No events exist yet. Crowd readings will appear here once an event is created and sensors are reporting.
+        </p>
+      </div>
+    )
+  }
+
+  const event       = eventList.find(e => e.id === selectedId) || eventList[0]
+  const overallPct  = event.totalCapacity ? Math.round((event.currentAttendance / event.totalCapacity) * 100) : 0
   const overallLevel = congestionLevel(overallPct)
-  const criticalZones = event.zones.filter(z => Math.round((z.current / z.capacity) * 100) >= 90)
+  const criticalZones = (event.zones || []).filter(z => z.capacity && Math.round((z.current / z.capacity) * 100) >= 90)
 
   return (
     <div>
@@ -85,14 +96,20 @@ function CrowdMonitor() {
 
       {/* Event selector */}
       <select
-        value={selectedId}
+        value={selectedId ?? ''}
         onChange={e => setSelectedId(Number(e.target.value))}
         style={styles.eventSelect}
       >
-        {EVENTS.map(ev => (
+        {eventList.map(ev => (
           <option key={ev.id} value={ev.id}>{ev.name} — {ev.date}</option>
         ))}
       </select>
+      {loadingZones && <p style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Loading zone data…</p>}
+      {!loadingZones && event.zones.length === 0 && (
+        <p style={{ color: '#92400e', background: '#fef3c7', padding: '8px 12px', borderRadius: 8, marginBottom: 16 }}>
+          No crowd readings have been recorded for this event yet.
+        </p>
+      )}
 
       {/* Overall summary */}
       <div style={{ ...styles.overallCard, borderColor: overallLevel.bar }}>

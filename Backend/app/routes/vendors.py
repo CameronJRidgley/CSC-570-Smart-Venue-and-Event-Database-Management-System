@@ -19,6 +19,7 @@ from app.schemas.vendor import (
     VendorAssignmentRead,
     VendorCreate,
     VendorRead,
+    VendorUpdate,
 )
 from app.services import vendor_service
 
@@ -42,6 +43,11 @@ def get_vendor(vendor_id: int, session: SessionDep):
 @router.post("", response_model=VendorRead, status_code=status.HTTP_201_CREATED)
 def create_vendor(payload: VendorCreate, session: SessionDep):
     return vendor_service.create_vendor(session, payload)
+
+
+@router.patch("/{vendor_id}", response_model=VendorRead)
+def patch_vendor(vendor_id: int, payload: VendorUpdate, session: SessionDep):
+    return vendor_service.update_vendor(session, vendor_id, payload)
 
 
 @router.post(

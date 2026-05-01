@@ -18,7 +18,20 @@ _client: AsyncIOMotorClient | None = None
 def get_mongo_client() -> AsyncIOMotorClient:
     global _client
     if _client is None:
-        _client = AsyncIOMotorClient(settings.mongo_url)
+        kwargs = {}
+        if settings.db_echo:
+            # Print every Mongo command that the driver sends. This is the
+            # async equivalent of SQLAlchemy's echo=True.
+            from pymongo import monitoring
+
+            class _MongoEcho(monitoring.CommandListener):
+                def started(self, event):
+                    print(f"[MONGO] {event.command_name} on {event.database_name}.{event.command.get(event.command_name)}: {dict(event.command)}")
+                def succeeded(self, event): pass
+                def failed(self, event):
+                    print(f"[MONGO ERROR] {event.command_name}: {event.failure}")
+            kwargs["event_listeners"] = [_MongoEcho()]
+        _client = AsyncIOMotorClient(settings.mongo_url, **kwargs)
     return _client
 
 

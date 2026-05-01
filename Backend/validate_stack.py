@@ -137,7 +137,7 @@ def check_postgres() -> bool:
             print_success("PostgreSQL is running and accessible")
             
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM event;")
+                cur.execute("SELECT COUNT(*) FROM events;")
                 count = cur.fetchone()[0]
                 print_success(f"Found {count} events in database")
             

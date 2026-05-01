@@ -3,14 +3,15 @@
 // Collects business info, contact details, vendor type, target event, and a description.
 // Validates required fields inline and shows a confirmation screen on successful submission.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../api'
 
-const EVENTS = [
-  'Spring Fest — April 15, 2026',
-  'Tech Innovators Conference — May 3, 2026',
-  'Local Food Truck Fiesta — May 20, 2026',
-  'Summer Music Festival — June 7, 2026',
+const FALLBACK_EVENTS = [
+  { id: null, label: 'Spring Fest — April 15, 2026' },
+  { id: null, label: 'Tech Innovators Conference — May 3, 2026' },
+  { id: null, label: 'Local Food Truck Fiesta — May 20, 2026' },
+  { id: null, label: 'Summer Music Festival — June 7, 2026' },
 ]
 
 const VENDOR_TYPES = [
@@ -29,6 +30,18 @@ function VendorApplyPage() {
   const [form, setForm] = useState(EMPTY)
   const [submitted, setSubmitted] = useState(false)
   const [errors, setErrors] = useState({})
+  const [events, setEvents] = useState(FALLBACK_EVENTS)
+
+  useEffect(() => {
+    api.listEvents().then(rows => {
+      if (rows && rows.length) {
+        setEvents(rows.map(e => ({
+          id: e.id,
+          label: `${e.name} — ${new Date(e.starts_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`,
+        })))
+      }
+    }).catch(() => {})
+  }, [])
 
   function handleChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
@@ -46,10 +59,21 @@ function VendorApplyPage() {
     return e
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
+    const matched = events.find(ev => ev.label === form.event)
+    try {
+      await api.createVendor({
+        name: form.business,
+        category: form.type,
+        contact_email: form.email,
+        event_id: matched?.id || undefined,
+      })
+    } catch (err) {
+      console.warn('Vendor apply failed:', err.message)
+    }
     setSubmitted(true)
   }
 
@@ -112,7 +136,7 @@ function VendorApplyPage() {
               <label style={styles.label}>Event</label>
               <select name="event" value={form.event} onChange={handleChange} style={{ ...styles.input, ...(errors.event ? styles.inputError : {}) }}>
                 <option value="">Select an event…</option>
-                {EVENTS.map(ev => <option key={ev} value={ev}>{ev}</option>)}
+                {events.map(ev => <option key={ev.label} value={ev.label}>{ev.label}</option>)}
               </select>
               {errors.event && <span style={styles.errMsg}>{errors.event}</span>}
             </div>

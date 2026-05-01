@@ -14,14 +14,14 @@ from app.models.sql.ticket import Ticket
 from app.models.sql.user import User
 from app.models.sql.vendor import Vendor, VendorSale
 from app.models.sql.vendor_assignment import VendorEventAssignment
-from app.models.sql.venue import SeatingSection, Venue
+from app.models.sql.venue import Seat, Venue
 
 __all__ = [
     "Attendee",
     "Event",
     "Incident",
     "Payment",
-    "SeatingSection",
+    "Seat",
     "Staff",
     "StaffVendorAssignment",
     "Ticket",

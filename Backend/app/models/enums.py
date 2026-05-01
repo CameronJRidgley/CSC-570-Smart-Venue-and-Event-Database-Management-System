@@ -46,14 +46,17 @@ class UserRole(str, Enum):
     ORGANIZER = "organizer"
     STAFF = "staff"
     ATTENDEE = "attendee"
+    VENDOR = "vendor"
 
 
 class StaffRole(str, Enum):
     ADMIN = "admin"
+    ORGANIZER = "organizer"
     MANAGER = "manager"
     SECURITY = "security"
     MEDICAL = "medical"
     USHER = "usher"
+    VENDOR = "vendor"
     VENDOR_LIAISON = "vendor_liaison"
 
 
@@ -121,6 +124,12 @@ class CrowdSource(str, Enum):
     MANUAL = "manual"
     SENSOR = "sensor"
     ESTIMATE = "estimate"
+
+
+class VendorStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 # Alert levels ranked low → high; used to decide "is this an alert?".

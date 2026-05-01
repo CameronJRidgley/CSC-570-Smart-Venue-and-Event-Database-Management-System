@@ -11,7 +11,7 @@ class TicketRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     event_id: int
-    seating_section_id: int
+    seat_id: int
     attendee_id: int
     seat_number: Optional[str]
     qr_code: str
@@ -28,7 +28,7 @@ class TicketPurchaseRequest(BaseModel):
     Seat number is optional for general-admission sections.
     """
     event_id: int
-    seating_section_id: int
+    seat_id: int
     seat_number: Optional[str] = Field(default=None, max_length=20)
 
     attendee_id: Optional[int] = None
