@@ -102,7 +102,18 @@ SELECT
     p.reference              AS transaction_reference
 FROM payments p
 JOIN tickets t ON t.id = p.ticket_id;
-
+-- ---------------------------------------------------------------------
+-- vendor_sale (new in team SQL)
+-- ---------------------------------------------------------------------
+DROP VIEW IF EXISTS vendor_sale CASCADE;
+CREATE VIEW vendor_sale AS
+SELECT
+    id                       AS sale_id,
+    vendor_id,
+    event_id,
+    total_amount             AS sale_amount,
+    sold_at                  AS sale_timestamp
+FROM vendor_sales;
 -- ---------------------------------------------------------------------
 -- staff
 -- ---------------------------------------------------------------------
