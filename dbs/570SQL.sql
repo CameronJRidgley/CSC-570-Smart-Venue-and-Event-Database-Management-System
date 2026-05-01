@@ -36,7 +36,7 @@ CREATE TABLE staff (
     staff_id SERIAL PRIMARY KEY,
     staff_first_name VARCHAR(50) NOT NULL,
     staff_last_name VARCHAR(50) NOT NULL,
-    staff_role VARCHAR(50) NOT NULL CHECK (staff_role IN ('security', 'vendor', 'admin')),
+    staff_role VARCHAR(50) NOT NULL CHECK (staff_role IN ('security', 'organizer', 'admin')),
     contact_num VARCHAR(15) NOT NULL
 );
 
