@@ -1,3 +1,5 @@
+// Author: Cameron Ridgley
+// Copilot had helped me work through bugs and things to sharp up this file
 // Shared API client for the Smart Venue backend.
 // All components should import from here instead of using fetch() directly.
 
@@ -90,6 +92,10 @@ export const api = {
   getCrowdZones:    (eventId)    => request(`/api/crowd/zones/${eventId}`),
   getCrowdAlerts:   (eventId)    => request(`/api/crowd/alerts/${eventId}`),
   setCrowdThreshold:(payload)    => request('/api/crowd/thresholds', { method: 'POST', body: payload }),
+
+  // ------- Feedback (Mongo) -------
+  submitFeedback:    (payload)   => request('/api/feedback', { method: 'POST', body: payload }),
+  listEventFeedback: (eventId)   => request(`/api/events/${eventId}/feedback`),
 
   // ------- Reports -------
   organizerDashboard: (id) => request(`/api/dashboard/organizer/${id}`),

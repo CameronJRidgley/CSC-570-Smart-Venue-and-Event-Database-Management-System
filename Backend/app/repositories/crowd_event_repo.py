@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 """Crowd event repository (MongoDB via Beanie)."""
 from typing import List, Optional
 

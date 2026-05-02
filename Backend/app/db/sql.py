@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 """PostgreSQL (SQLModel) engine and session management."""
 from collections.abc import Generator
 

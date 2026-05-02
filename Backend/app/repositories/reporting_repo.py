@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 """Reporting-specific SQL and Mongo aggregations.
 
 Keeps read-only, report-only queries separate from transactional repos.

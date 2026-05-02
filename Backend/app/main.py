@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 """FastAPI application entrypoint.
 
 Run locally:
@@ -32,6 +34,7 @@ from app.routes import (
     checkin,
     crowd,
     events,
+    feedback,
     health,
     incidents,
     reports,
@@ -88,6 +91,7 @@ app.include_router(incidents.router, prefix=settings.api_v1_prefix)
 app.include_router(vendors.router, prefix=settings.api_v1_prefix)
 app.include_router(vendor_sales.router, prefix=settings.api_v1_prefix)
 app.include_router(crowd.router, prefix=settings.api_v1_prefix)
+app.include_router(feedback.router, prefix=settings.api_v1_prefix)
 app.include_router(reports.router, prefix=settings.api_v1_prefix)
 app.include_router(staff.router, prefix=settings.api_v1_prefix)
 app.include_router(admin.router, prefix=settings.api_v1_prefix)

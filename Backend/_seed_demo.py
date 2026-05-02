@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 """Idempotent seed script: demo users + venues + events for the portal flows."""
 import asyncio
 import random

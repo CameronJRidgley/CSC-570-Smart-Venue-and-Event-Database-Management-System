@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 """Ticket table.
 
 A Ticket binds an Attendee to an Event + Seat, at an optional specific

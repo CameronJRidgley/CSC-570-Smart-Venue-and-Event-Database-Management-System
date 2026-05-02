@@ -1,4 +1,5 @@
-// Author: Nicco Hill
+// Author: Nicco Hill, Cameron Ridgley
+// Copilot had helped me work through bugs and things to sharp up this file
 // UpcomingEvents.jsx — Attendee-facing event browser.
 // Features: text + date search filtering, vendor pill previews per event,
 // expandable "More Analytics" panel (ticket breakdown, capacity bar, full vendor list),
