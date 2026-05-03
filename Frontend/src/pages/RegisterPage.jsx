@@ -1,4 +1,5 @@
-// Author: Nicco Hill
+// Author: Nicco Hill, Cameron Ridgley
+// Copilot had helped me work through bugs and things to sharp up this file
 // RegisterPage.jsx — Account creation flow with three paths:
 //   Attendee / Vendor → immediate access after registration.
 //   Staff (Admin, Organizer, Security) → submitted for admin approval before login is granted.

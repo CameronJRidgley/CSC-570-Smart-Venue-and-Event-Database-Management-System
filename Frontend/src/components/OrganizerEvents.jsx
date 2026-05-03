@@ -1,4 +1,5 @@
-// Author: Nicco Hill
+// Author: Nicco Hill, Cameron Ridgley
+// Copilot had helped me work through bugs and things to sharp up this file
 // OrganizerEvents.jsx — Event management dashboard for organizers.
 // Lists all events with live stats (attendees, revenue, vendor count).
 // Each event card has two expandable panels:

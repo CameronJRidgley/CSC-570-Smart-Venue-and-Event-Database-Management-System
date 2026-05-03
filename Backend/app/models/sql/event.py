@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 """Event table.
 
 An Event is held at exactly one Venue. Capacity is denormalized onto the

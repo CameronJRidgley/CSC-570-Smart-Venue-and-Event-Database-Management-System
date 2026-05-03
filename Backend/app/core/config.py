@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 from functools import lru_cache
 from typing import List
 

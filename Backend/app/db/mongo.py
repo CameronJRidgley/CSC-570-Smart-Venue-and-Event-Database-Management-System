@@ -1,3 +1,5 @@
+# Author: Cameron Ridgley
+# Copilot had helped me work through bugs and things to sharp up this file
 """MongoDB (Beanie + Motor) client and initialization.
 
 Beanie document models will be registered here as they are created in

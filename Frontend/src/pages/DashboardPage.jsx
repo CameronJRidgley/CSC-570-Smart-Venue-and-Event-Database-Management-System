@@ -1,4 +1,5 @@
-// Author: Nicco Hill
+// Author: Nicco Hill, Cameron Ridgley
+// Copilot had helped me work through bugs and things to sharp up this file
 // DashboardPage.jsx — Role-based dashboard shell shown after login.
 // Reads the user's role from localStorage and renders the appropriate
 // tab set. Each tab swaps in a different feature component as the main content.
@@ -18,11 +19,14 @@ import PersonnelAssignment from '../components/PersonnelAssignment'
 import AdminUsers from '../components/AdminUsers'
 import AdminReports from '../components/AdminReports'
 import AdminApprovals from '../components/AdminApprovals'
+import EventFeedback from '../components/EventFeedback'
+import IncidentReport from '../components/IncidentReport'
 
 const ROLE_TABS = {
   attendee: [
     { id: 'events',  label: 'Upcoming Events', component: UpcomingEvents },
     { id: 'tickets', label: 'My Tickets',       component: MyTickets },
+    { id: 'feedback',label: 'Feedback',         component: EventFeedback },
   ],
   vendor: [
     { id: 'vendor', label: 'My Dashboard',  component: VendorDashboard },
@@ -34,15 +38,18 @@ const ROLE_TABS = {
     { id: 'reports',    label: 'Reports',        component: AdminReports },
     { id: 'events',     label: 'All Events',     component: OrganizerEvents },
     { id: 'crowd',      label: 'Crowd Monitor',  component: CrowdMonitor },
+    { id: 'incidents',  label: 'Incidents',      component: IncidentReport },
     { id: 'personnel',  label: 'Personnel',      component: PersonnelAssignment },
   ],
   organizer: [
     { id: 'my-events',    label: 'My Events',    component: OrganizerEvents },
     { id: 'create-event', label: 'Create Event', component: CreateEvent },
+    { id: 'incidents',    label: 'Incidents',    component: IncidentReport },
   ],
   security: [
     { id: 'checkin',   label: 'Check-In',   component: StaffCheckIn },
     { id: 'crowd',     label: 'Crowd Monitor', component: CrowdMonitor },
+    { id: 'incidents', label: 'File Incident', component: IncidentReport },
     { id: 'personnel', label: 'Personnel',  component: PersonnelAssignment },
   ],
   // Backend stores generic staff users with role='staff' (UserRole.STAFF).
@@ -50,6 +57,7 @@ const ROLE_TABS = {
   staff: [
     { id: 'checkin',   label: 'Check-In',      component: StaffCheckIn },
     { id: 'crowd',     label: 'Crowd Monitor', component: CrowdMonitor },
+    { id: 'incidents', label: 'File Incident', component: IncidentReport },
     { id: 'personnel', label: 'Personnel',     component: PersonnelAssignment },
   ],
 }
